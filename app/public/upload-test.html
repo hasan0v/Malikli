@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="file"] { display: block; width: 100%; padding: 8px; }
+        button { background-color: #4CAF50; color: white; padding: 10px 15px; border: none; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        #result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; min-height: 100px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>File Upload Test</h1>
+    <p>This simple tool tests file uploads to your API endpoint</p>
+    
+    <div class="form-group">
+        <label for="authToken">Auth Token:</label>
+        <input type="text" id="authToken" placeholder="Paste your auth token here" style="width: 90%;">
+    </div>
+    
+    <div class="form-group">
+        <label for="fileInput">Select File:</label>
+        <input type="file" id="fileInput">
+    </div>
+    
+    <button onclick="uploadFile()">Upload File</button>
+    
+    <div id="result">Results will appear here...</div>
+    
+    <script>
+        async function uploadFile() {
+            const resultDiv = document.getElementById('result');
+            const fileInput = document.getElementById('fileInput');
+            const authToken = document.getElementById('authToken').value;
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                resultDiv.textContent = 'ERROR: Please select a file first!';
+                return;
+            }
+            
+            if (!authToken) {
+                resultDiv.textContent = 'ERROR: Please enter an auth token!';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            resultDiv.textContent = `Starting upload of ${file.name} (${file.type}, ${file.size} bytes)...\n`;
+            
+            try {
+                // Create FormData
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('filename', file.name);
+                
+                // Log what we're sending
+                resultDiv.textContent += `FormData created with file and filename.\n`;
+                
+                // Make the fetch request
+                resultDiv.textContent += `Sending request to /api/admin/upload-image...\n`;
+                const response = await fetch('/api/admin/upload-image', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                        // No Content-Type, browser will set it automatically with boundaries
+                    },
+                    body: formData
+                });
+                
+                resultDiv.textContent += `Response status: ${response.status} ${response.statusText}\n`;
+                
+                // Get the response text
+                const responseText = await response.text();
+                
+                try {
+                    // Try to parse as JSON
+                    const jsonResponse = JSON.parse(responseText);
+                    resultDiv.textContent += `Response JSON:\n${JSON.stringify(jsonResponse, null, 2)}`;
+                } catch (e) {
+                    // If not JSON, just show the raw text
+                    resultDiv.textContent += `Response (non-JSON):\n${responseText}`;
+                }
+                
+            } catch (error) {
+                resultDiv.textContent += `ERROR: ${error.message}`;
+                console.error('Upload error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

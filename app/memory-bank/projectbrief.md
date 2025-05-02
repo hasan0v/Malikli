@@ -1,0 +1,1 @@
+Create an e-commerce web app named malikli1992 featuring periodic product drops. The application will allow users to browse products, sign up/in, manage their accounts, place orders, and view order history. Admins will have capabilities to manage products, including scheduling drops, and view all orders. The core feature is the periodic release of limited products ("drops").

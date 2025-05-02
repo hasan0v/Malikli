@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "supabase-access-token",
+      "description": "Supabase personal access token",
+      "password": true
+    }
+  ],
+  "servers": {
+    "supabase": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@supabase/mcp-server-supabase@latest"],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${input:supabase-access-token}"
+      }
+    },
+    
+    "memoryBank": {
+      "command": "node",
+      "args": ["C:/Users/alien/Downloads/memory-bank-MCP-main/dist/index.js"],
+      "env": {
+        "GEMINI_API_KEY": "AIzaSyCMhkDcFOnp1NKPwbNvOGqpAH3PdkOzbPA"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/alien/Desktop",
+        "C:/Users/alien/Desktop/Test Projects/malikli",
+        "/Users/alien/Desktop/Test Projects/malikli"
+      ]
+    }
+  }
+}
