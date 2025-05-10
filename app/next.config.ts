@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
     "http://192.168.56.1:3000", // Existing
     "http://127.0.0.1:3000",     // Add localhost
     "http://127.0.0.1",     // Add localhost
+    "https://malikli1992.com",
+    "https://www.malikli1992.com",
+    "https://iris-rose.online",
   ],
 };
 

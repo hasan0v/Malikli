@@ -172,12 +172,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       fetchProfile();
     } else {
       // No user, ensure profile is null.
-      if (profile !== null) setProfile(null);
-      // If mounted and no user, we are done loading for this state.
-      // The initial auth state check already handles setLoading(false) if no user initially.
-      // If user becomes null due to logout, the auth listener handles setLoading(false).
+      setProfile(null);
+      // setLoading(false) is handled by onAuthStateChange when user becomes null,
+      // or by fetchInitialSession if there's no initial user.
     }
-  }, [user, profile]); // Added profile to dependency array to avoid stale closure on setProfile(null)
+  }, [user]); // Only depend on user to prevent re-fetching profile when profile object changes
 
   // Sign out function
   const signOut = async () => {
