@@ -14,8 +14,7 @@ const nextConfig = {
     ],
   },
   allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev', 'ali-hasanov.com', '*.ali-hasanov.com', 'vercel.com', '*.vercel.com', '185-237-14-81.cloud-xip.com', '*.185-237-14-81.cloud-xip.com'],
-  reactStrictMode: true,
-  // output: 'export',
+
 }
 
 module.exports = nextConfig
