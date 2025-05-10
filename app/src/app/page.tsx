@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/utils/supabaseClient';
-import { useAuth } from '@/context/AuthContext';
+// import { useAuth } from '@/context/AuthContext'; // user and profile are not used
 import { useRouter } from 'next/navigation';
 
 // Define the structure of a Product based on your schema
@@ -27,8 +27,18 @@ interface NextDrop {
   drop_scheduled_time: string;
 }
 
+// Helper function to get error messages
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return 'An unknown error occurred.';
+};
+
 export default function HomePage() {
-  const { user, profile } = useAuth();
+  // const { user, profile } = useAuth(); // user and profile are not used in this component's logic
   const router = useRouter();
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -58,11 +68,9 @@ export default function HomePage() {
       setLoading(true);
       setError(null);
       try {
-        // Get current date
         const now = new Date().toISOString();
         
-        // First, check for the next upcoming drop
-        const { data: upcomingDrops, error: dropError } = await supabase
+        const { data: upcomingDropsData, error: dropError } = await supabase // Renamed data to upcomingDropsData
           .from('products')
           .select('id, name, drop_scheduled_time')
           .eq('is_active', true)
@@ -72,35 +80,34 @@ export default function HomePage() {
           
         if (dropError) throw dropError;
         
+        const upcomingDrops = upcomingDropsData as NextDrop[] | null; // Cast
         if (upcomingDrops && upcomingDrops.length > 0) {
           setNextDrop(upcomingDrops[0]);
         }
         
-        // Fetch active products that are currently available (not scheduled for future or drop time has passed)
-        // and have inventory
-        const { data: availableProducts, error: productsError } = await supabase
+        const { data: availableProductsData, error: productsError } = await supabase // Renamed data
           .from('products')
           .select('*')
           .eq('is_active', true)
           .gt('inventory_count', 0)
-          .or(`drop_scheduled_time.is.null,drop_scheduled_time.lte.${now}`) // Available if no drop time OR drop time is in the past
-          .order('created_at', { ascending: false }); // Show newest first
+          .or(`drop_scheduled_time.is.null,drop_scheduled_time.lte.${now}`)
+          .order('created_at', { ascending: false });
 
         if (productsError) throw productsError;
         
-        setProducts(availableProducts || []);
-      } catch (err: any) {
+        setProducts((availableProductsData as Product[]) || []); // Cast data
+      } catch (err: unknown) {
+        const message = getErrorMessage(err);
         console.error("Error fetching data:", err);
-        setError(`Failed to load data: ${err.message}`);
+        setError(`Failed to load data: ${message}`);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []); // Empty dependency array means this runs once on mount
+  }, []); 
   
-  // Update the countdown timer every second if there's a scheduled drop
   useEffect(() => {
     if (!nextDrop?.drop_scheduled_time) return;
     
@@ -109,13 +116,13 @@ export default function HomePage() {
       const currentTime = new Date().getTime();
       const timeDiff = dropTime - currentTime;
       
-      // If the time has passed, refresh page to show products
       if (timeDiff <= 0) {
-        window.location.reload();
+        // Instead of reload, maybe just clear nextDrop and fetch products again or set a flag
+        setNextDrop(null); // This will trigger the other view
+        // Optionally, you could call fetchData() again here if new products become available
         return;
       }
       
-      // Calculate remaining time
       const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
@@ -124,33 +131,28 @@ export default function HomePage() {
       setTimeRemaining({ days, hours, minutes, seconds });
     };
     
-    // Calculate immediately and then every second
     calculateTimeRemaining();
     const timer = setInterval(calculateTimeRemaining, 1000);
     
     return () => clearInterval(timer);
   }, [nextDrop]);
   
-  // Handle form submission for sign up
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
     setFormSuccess('');
     setIsSubmitting(true);
     
-    // Form validation
     if (!firstName || !lastName || !email || !password) {
       setFormError('All fields are required');
       setIsSubmitting(false);
       return;
     }
-    
     if (password !== confirmPassword) {
       setFormError('Passwords do not match');
       setIsSubmitting(false);
       return;
     }
-    
     if (password.length < 8) {
       setFormError('Password must be at least 8 characters');
       setIsSubmitting(false);
@@ -159,48 +161,52 @@ export default function HomePage() {
     
     try {
       // Sign up with email and password
-      const { data, error } = await supabase.auth.signUp({
+      // const { data, error } = await supabase.auth.signUp({ // 'data' is assigned a value but never used.
+      const { error: signUpError } = await supabase.auth.signUp({ // Destructure only error if data is not used
         email,
         password,
         options: {
           data: {
             first_name: firstName,
             last_name: lastName,
+            // Supabase automatically creates a profile via trigger or you'd insert into 'profiles' table here
+            // if your AuthContext doesn't handle it.
           }
         }
       });
       
-      if (error) throw error;
+      if (signUpError) throw signUpError;
       
-      // Success - show message
-      setFormSuccess('Success! You\'re registered and will be notified.');
+      setFormSuccess("Success! You&apos;re registered and will be notified.");
       
-      // Check if the drop is active - redirect after 2 seconds
       setTimeout(() => {
         const dropIsActive = nextDrop && new Date(nextDrop.drop_scheduled_time) <= new Date();
         if (dropIsActive) {
-          // Redirect to products page
           router.push('/products');
         } else {
-          // Just close the modal
           setShowSignUpModal(false);
           setFormSuccess('');
+          // Clear form fields
+          setFirstName('');
+          setLastName('');
+          setEmail('');
+          setPassword('');
+          setConfirmPassword('');
         }
       }, 2000);
       
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
       console.error('Signup error:', err);
-      setFormError(err.message || 'Failed to sign up. Please try again.');
+      setFormError(message || 'Failed to sign up. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
   
-  // If next drop exists and it's in the future, show the countdown landing page
   if (nextDrop && new Date(nextDrop.drop_scheduled_time) > new Date()) {
     return (
       <div className="min-h-screen flex flex-col">
-        {/* Hero Section with Countdown */}
         <div className="flex-grow flex flex-col items-center justify-center px-4 py-12 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-[#24225c] mb-6">
             {nextDrop.name}
@@ -210,7 +216,6 @@ export default function HomePage() {
             Curated Exclusivity. Dropping Soon.
           </p>
           
-          {/* Countdown Timer */}
           <div className="mb-12">
             <h2 className="text-xl mb-4 font-semibold text-[#76bfd4]">Next Drop Arrives In:</h2>
             <div className="grid grid-cols-4 gap-4 text-center">
@@ -233,7 +238,6 @@ export default function HomePage() {
             </div>
           </div>
           
-          {/* CTA Button */}
           <button
             onClick={() => setShowSignUpModal(true)}
             className="bg-[#b597ff] hover:bg-[#9f81ff] transition-colors duration-300 text-white font-semibold py-3 px-8 rounded-md text-lg"
@@ -242,11 +246,9 @@ export default function HomePage() {
           </button>
         </div>
         
-        {/* Sign-Up Modal */}
         {showSignUpModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative">
-              {/* Close button */}
               <button 
                 onClick={() => setShowSignUpModal(false)}
                 className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
@@ -349,7 +351,6 @@ export default function HomePage() {
     );
   }
 
-  // Otherwise, display the regular products page
   if (loading) {
     return <div className="text-center py-10">Loading products...</div>;
   }
@@ -360,10 +361,8 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* Promotional Banner */}
       <div className="mb-8 relative rounded-lg overflow-hidden">
         <div className="h-64 bg-gradient-to-r from-[#24225c] to-[#b597ff]">
-          {/* This would ideally be an image or video */}
         </div>
         <div className="absolute inset-0 flex items-center justify-center text-white">
           <div className="text-center p-6">
@@ -373,14 +372,12 @@ export default function HomePage() {
         </div>
       </div>
       
-      {/* Introduction Narrative */}
       <div className="mb-8 text-center max-w-3xl mx-auto">
         <p className="text-lg text-[#24225c]">
           Timeless silhouettes re‑imagined for the modern tastemaker, crafted in limited numbers for those who curate rather than consume.
         </p>
       </div>
       
-      {/* Products Grid */}
       {products.length === 0 ? (
         <div className="text-center py-10 bg-gray-50 rounded-lg">
           <p className="text-gray-500 mb-2">No products available right now.</p>
@@ -407,7 +404,7 @@ export default function HomePage() {
               <div className="p-4">
                 <h2 className="text-lg font-semibold truncate group-hover:text-[#76bfd4]">{product.name}</h2>
                 <p className="text-gray-700 mt-1">${product.price.toFixed(2)}</p>
-                {product.inventory_count <= 5 && (
+                {product.inventory_count > 0 && product.inventory_count <= 5 && ( // Only show if inventory > 0
                   <p className="text-xs text-red-600 mt-1">Only {product.inventory_count} left!</p>
                 )}
               </div>

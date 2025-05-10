@@ -5,8 +5,8 @@ import { createServiceRoleClient, createServerClientWithToken } from '@/utils/su
 interface NewProductData {
     name: string;
     description?: string;
-    price: number;
-    inventory_count: number;
+    price: number | string; // Allow string initially for parsing
+    inventory_count: number | string; // Allow string initially for parsing
     image_urls?: string[]; // Expecting an array containing the public URLs
     is_active?: boolean;
     drop_scheduled_time?: string | null; // ISO 8601 format or null
@@ -18,9 +18,19 @@ interface NewProductData {
         sizeId: string;
         colorId: string;
         inventory: number;
-        price: string;
+        price: string; // Keep as string for potential parsing, though API might expect number
     }[];
 }
+
+// Helper function to get error messages
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return 'An unexpected error occurred.';
+};
 
 export async function POST(req: NextRequest) {
     try {
@@ -74,33 +84,34 @@ export async function POST(req: NextRequest) {
 
         // 2. Parse request body and validate product data
         let productData: NewProductData;
+        let parsedPrice: number;
+        let parsedInventoryCount: number;
+
         try {
-            productData = await req.json();
+            productData = await req.json() as NewProductData;
 
             // Basic data validation
             if (!productData.name) {
                 throw new Error('Product name is required');
             }
 
-            // Ensure numeric fields are numbers (might come as strings from frontend form)
-            if (typeof productData.price === 'string') {
-                productData.price = parseFloat(productData.price);
-            }
-            if (typeof productData.inventory_count === 'string') {
-                productData.inventory_count = parseInt(productData.inventory_count, 10);
-            }
+            // Ensure numeric fields are numbers
+            parsedPrice = parseFloat(String(productData.price));
+            parsedInventoryCount = parseInt(String(productData.inventory_count), 10);
+
 
             // Further validation
-            if (isNaN(productData.price) || productData.price < 0) {
+            if (isNaN(parsedPrice) || parsedPrice < 0) {
                 throw new Error('Invalid price value');
             }
-            if (isNaN(productData.inventory_count) || productData.inventory_count < 0) {
+            if (isNaN(parsedInventoryCount) || parsedInventoryCount < 0) {
                 throw new Error('Invalid inventory count');
             }
 
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
             console.error("API Body Parse Error:", err);
-            return NextResponse.json({ error: err.message || 'Invalid request data' }, { status: 400 });
+            return NextResponse.json({ error: message || 'Invalid request data' }, { status: 400 });
         }
 
         // 3. Insert the product into database using service role client (admin permissions)
@@ -111,8 +122,8 @@ export async function POST(req: NextRequest) {
                 .insert({
                     name: productData.name,
                     description: productData.description,
-                    price: productData.price,
-                    inventory_count: productData.inventory_count,
+                    price: parsedPrice,
+                    inventory_count: parsedInventoryCount,
                     image_urls: productData.image_urls,
                     is_active: productData.is_active,
                     drop_scheduled_time: productData.drop_scheduled_time,
@@ -131,7 +142,7 @@ export async function POST(req: NextRequest) {
                 const categoryInserts = productData.categories.map(categoryId => ({
                     product_id: product.id,
                     category_id: categoryId,
-                    is_primary: productData.categories[0] === categoryId // First category is primary
+                    is_primary: productData.categories?.[0] === categoryId // First category is primary
                 }));
 
                 const { error: categoriesError } = await supabaseAdmin
@@ -188,7 +199,7 @@ export async function POST(req: NextRequest) {
                     size_id: variant.sizeId,
                     color_id: variant.colorId,
                     inventory_count: variant.inventory,
-                    price_adjustment: parseFloat(variant.price) - productData.price, // Store price difference
+                    price_adjustment: parseFloat(variant.price) - parsedPrice, // Store price difference
                 }));
 
                 const { error: variantsError } = await supabaseAdmin
@@ -237,12 +248,14 @@ export async function POST(req: NextRequest) {
             // Return the created product data
             return NextResponse.json(product, { status: 201 });
 
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
             console.error("API Product Creation Error:", err);
-            return NextResponse.json({ error: err.message || 'Failed to create product.' }, { status: 500 });
+            return NextResponse.json({ error: message || 'Failed to create product.' }, { status: 500 });
         }
-    } catch (error) {
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
         console.error('Unexpected error in products API route:', error);
-        return NextResponse.json({ error: 'An unexpected server error occurred' }, { status: 500 });
+        return NextResponse.json({ error: message || 'An unexpected server error occurred' }, { status: 500 });
     }
 }

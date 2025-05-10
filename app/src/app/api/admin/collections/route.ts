@@ -10,6 +10,16 @@ interface NewCollectionData {
     cover_image_url?: string;
 }
 
+// Helper function to get error messages
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return 'An unexpected error occurred.';
+};
+
 export async function POST(req: NextRequest) {
     try {
         // Extract the authorization header
@@ -57,15 +67,16 @@ export async function POST(req: NextRequest) {
         // Parse request body and validate collection data
         let collectionData: NewCollectionData;
         try {
-            collectionData = await req.json();
+            collectionData = await req.json() as NewCollectionData;
 
             // Basic data validation
             if (!collectionData.name) {
                 throw new Error('Collection name is required');
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
             console.error("API Body Parse Error:", err);
-            return NextResponse.json({ error: err.message || 'Invalid request data' }, { status: 400 });
+            return NextResponse.json({ error: message || 'Invalid request data' }, { status: 400 });
         }
 
         // Generate a slug from the name
@@ -99,12 +110,14 @@ export async function POST(req: NextRequest) {
             // Return the created collection data
             return NextResponse.json(collection, { status: 201 });
 
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
             console.error("API Collection Creation Error:", err);
-            return NextResponse.json({ error: err.message || 'Failed to create collection.' }, { status: 500 });
+            return NextResponse.json({ error: message || 'Failed to create collection.' }, { status: 500 });
         }
-    } catch (error) {
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
         console.error('Unexpected error in collections API route:', error);
-        return NextResponse.json({ error: 'An unexpected server error occurred' }, { status: 500 });
+        return NextResponse.json({ error: message || 'An unexpected server error occurred' }, { status: 500 });
     }
 }

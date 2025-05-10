@@ -40,10 +40,8 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
       setCountdown({ days, hours, minutes, seconds });
     };
 
-    // Calculate immediately
     calculateTimeRemaining();
     
-    // Update every second
     const interval = setInterval(calculateTimeRemaining, 1000);
     
     return () => clearInterval(interval);
@@ -94,6 +92,10 @@ export const NotificationForm: React.FC<NotificationFormProps> = ({
     e.preventDefault();
     if (email.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       onSubmit(email);
+      // setEmail(''); // Optionally clear email after submission, depends on parent logic
+    } else {
+      // Optionally provide feedback for invalid email
+      alert('Please enter a valid email address.');
     }
   };
 
@@ -105,13 +107,13 @@ export const NotificationForm: React.FC<NotificationFormProps> = ({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder={placeholderText}
-          className="w-full px-4 py-3 pr-28 rounded-lg border-2 border-[#ced1ff] bg-white/10 backdrop-blur-sm text-white placeholder-white/70"
+          className="w-full px-4 py-3 pr-28 rounded-lg border-2 border-[#ced1ff] bg-white/10 backdrop-blur-sm text-white placeholder-white/70 focus:ring-2 focus:ring-[#b597ff] outline-none"
           required
         />
         <button 
           type="submit"
           disabled={loading}
-          className="absolute right-1 top-1 bottom-1 px-4 bg-[#b597ff] hover:bg-[#a076ff] text-white rounded-md transition-colors flex items-center justify-center"
+          className="absolute right-1 top-1 bottom-1 px-4 bg-[#b597ff] hover:bg-[#a076ff] text-white rounded-md transition-colors flex items-center justify-center disabled:opacity-70"
         >
           {loading ? (
             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -123,20 +125,44 @@ export const NotificationForm: React.FC<NotificationFormProps> = ({
       
       {showSuccess && (
         <div className="mt-2 text-sm font-medium text-[#a0fff8]">
-          ✓ You've been added to our notification list!
+          ✓ You&apos;ve been added to our notification list!
         </div>
       )}
     </div>
   );
 };
 
-export const ProductCard: React.FC<{
-  product: any;
-  onSetReminder: () => void;
-}> = ({ product, onSetReminder }) => {
+// Define a basic product type for the ProductCard props
+// interface ProductSummary { // Commented out as ProductCard is commented out
+//   id: string;
+//   name: string;
+//   // Add other fields relevant to a product card summary
+//   image_urls?: string[] | null; 
+//   price?: number;
+// }
+
+// interface ProductCardProps { // Commented out as ProductCard is commented out
+//   product: ProductSummary; 
+//   onSetReminder: (productId: string) => void; 
+// }
+
+/* // ProductCard component is commented out as it's not implemented
+export const ProductCard: React.FC<ProductCardProps> = ({ 
+  product, 
+  onSetReminder 
+}) => {
   return (
     <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 border border-[#ced1ff]/30">
-      {/* Card content would go here - extracted to make it reusable */}
+      {/* Example Usage of props:
+      <h2>{product.name}</h2>
+      {product.image_urls && product.image_urls[0] && (
+        <img src={product.image_urls[0]} alt={product.name} />
+      )}
+      <p>Price: ${product.price}</p>
+      <button onClick={() => onSetReminder(product.id)}>Set Reminder</button>
+      * /
+      {/* Card content would go here - extracted to make it reusable * /
     </div>
   );
 };
+// */

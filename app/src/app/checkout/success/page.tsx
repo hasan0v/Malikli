@@ -5,6 +5,17 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 
+// Define a more specific type for order items
+interface OrderItem {
+  id: string; // Or product_id, depending on your data structure
+  quantity: number;
+  product?: {
+    name: string;
+    price: number;
+    image_urls: string[] | null;
+  };
+}
+
 interface OrderConfirmation {
   orderNumber: string;
   orderDate: string;
@@ -17,7 +28,7 @@ interface OrderConfirmation {
     country: string;
   };
   shippingMethod: string;
-  items: any[]; // Using any for simplicity
+  items: OrderItem[]; // Use the specific OrderItem type
   subtotal: number;
   shipping: number;
   tax: number;
@@ -35,16 +46,19 @@ export default function CheckoutSuccessPage() {
     
     if (storedOrderDetails) {
       try {
-        const parsedDetails = JSON.parse(storedOrderDetails);
+        const parsedDetails = JSON.parse(storedOrderDetails) as OrderConfirmation; // Cast to OrderConfirmation
         setOrderDetails(parsedDetails);
       } catch (error) {
         console.error('Error parsing order details:', error);
+        // Optionally, redirect or show an error if parsing fails
+        // router.push('/'); 
       }
     } else {
       // Redirect to home if no order details found (prevents accessing success page directly)
       // Wait a moment to ensure this isn't triggered during initial load
       const timer = setTimeout(() => {
-        if (!orderDetails) {
+        // Check orderDetails state here, not storedOrderDetails again
+        if (!orderDetails && !sessionStorage.getItem('orderConfirmation')) { // Double check to avoid race conditions
           router.push('/');
         }
       }, 1000);
@@ -53,7 +67,7 @@ export default function CheckoutSuccessPage() {
     }
     
     setLoading(false);
-  }, [router]);
+  }, [router, orderDetails]); // Added orderDetails to dependency array
 
   // Format the date to a more readable format
   const formatDate = (dateString: string) => {
@@ -86,15 +100,13 @@ export default function CheckoutSuccessPage() {
         daysToAdd = 7;
     }
     
-    // Add the days, accounting for weekends in a simple way
     const deliveryDate = new Date(orderTime);
     let daysAdded = 0;
     
     while (daysAdded < daysToAdd) {
       deliveryDate.setDate(deliveryDate.getDate() + 1);
-      // Skip weekends (0 is Sunday, 6 is Saturday)
       const dayOfWeek = deliveryDate.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Skip weekends (0 is Sunday, 6 is Saturday)
         daysAdded++;
       }
     }
@@ -122,7 +134,7 @@ export default function CheckoutSuccessPage() {
       <div className="container mx-auto px-4 py-16 text-center">
         <h1 className="text-2xl font-bold text-[#24225c] mb-4">Order Not Found</h1>
         <p className="text-gray-600 mb-6">
-          We couldn't find your order details. Please try placing an order first.
+          We couldn&apos;t find your order details. Please try placing an order first.
         </p>
         <Link href="/products" className="bg-[#76bfd4] hover:bg-[#5eabc6] text-white font-semibold py-3 px-6 rounded transition-colors duration-300">
           Browse Products
@@ -142,7 +154,7 @@ export default function CheckoutSuccessPage() {
         </div>
         <h1 className="text-3xl font-bold text-[#24225c] mb-2">Order Placed Successfully!</h1>
         <p className="text-gray-600">
-          Thank you for your purchase. We've sent a confirmation email to your inbox.
+          Thank you for your purchase. We&apos;ve sent a confirmation email to your inbox.
         </p>
       </div>
       
@@ -162,7 +174,7 @@ export default function CheckoutSuccessPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Payment Method:</span>
-                <span className="text-[#24225c]">Credit Card</span>
+                <span className="text-[#24225c]">Credit Card</span> {/* Assuming this is static or comes from elsewhere */}
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Order Total:</span>
@@ -187,6 +199,7 @@ export default function CheckoutSuccessPage() {
                 {orderDetails.shippingMethod === 'standard' && 'Standard Shipping (3-5 business days)'}
                 {orderDetails.shippingMethod === 'express' && 'Express Shipping (1-2 business days)'}
                 {orderDetails.shippingMethod === 'overnight' && 'Overnight Shipping (Next business day)'}
+                {orderDetails.shippingMethod !== 'standard' && orderDetails.shippingMethod !== 'express' && orderDetails.shippingMethod !== 'overnight' && 'Unknown Method'}
               </span>
             </div>
             <div>
@@ -210,7 +223,7 @@ export default function CheckoutSuccessPage() {
                 {item.product?.image_urls && item.product.image_urls.length > 0 ? (
                   <Image
                     src={item.product.image_urls[0]}
-                    alt={item.product?.name || ''}
+                    alt={item.product?.name || 'Product image'}
                     fill
                     sizes="80px"
                     style={{ objectFit: 'cover' }}

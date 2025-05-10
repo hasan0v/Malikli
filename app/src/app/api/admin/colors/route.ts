@@ -9,6 +9,16 @@ interface NewColorData {
     sort_order?: number;
 }
 
+// Helper function to get error messages
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return 'An unexpected error occurred.';
+};
+
 export async function POST(req: NextRequest) {
     try {
         // Extract the authorization header
@@ -56,7 +66,7 @@ export async function POST(req: NextRequest) {
         // Parse request body and validate color data
         let colorData: NewColorData;
         try {
-            colorData = await req.json();
+            colorData = await req.json() as NewColorData;
 
             // Basic data validation
             if (!colorData.name) {
@@ -65,20 +75,24 @@ export async function POST(req: NextRequest) {
             if (!colorData.display_name) {
                 throw new Error('Display name is required');
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
             console.error("API Body Parse Error:", err);
-            return NextResponse.json({ error: err.message || 'Invalid request data' }, { status: 400 });
+            return NextResponse.json({ error: message || 'Invalid request data' }, { status: 400 });
         }
 
         // Insert the color into database
         try {
             // First get the highest sort_order to append new color at the end
-            const { data: maxSortOrder } = await supabaseAdmin
+            const { data: maxSortOrderData } = await supabaseAdmin
                 .from('product_colors')
                 .select('sort_order')
                 .order('sort_order', { ascending: false })
                 .limit(1)
                 .single();
+            
+            // Properly type maxSortOrderData if needed, or handle potential null
+            const maxSortOrder = maxSortOrderData as { sort_order: number | null } | null;
                 
             const newSortOrder = colorData.sort_order !== undefined 
                 ? colorData.sort_order 
@@ -105,12 +119,14 @@ export async function POST(req: NextRequest) {
             // Return the created color data
             return NextResponse.json(color, { status: 201 });
 
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
             console.error("API Color Creation Error:", err);
-            return NextResponse.json({ error: err.message || 'Failed to create color.' }, { status: 500 });
+            return NextResponse.json({ error: message || 'Failed to create color.' }, { status: 500 });
         }
-    } catch (error) {
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
         console.error('Unexpected error in colors API route:', error);
-        return NextResponse.json({ error: 'An unexpected server error occurred' }, { status: 500 });
+        return NextResponse.json({ error: message || 'An unexpected server error occurred' }, { status: 500 });
     }
 }

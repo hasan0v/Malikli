@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient, createServerClientWithToken } from '@/utils/supabaseServer';
 
+interface PromoteUserRequestBody {
+  userId: string;
+}
+
+// Helper function to get error messages
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return 'An unexpected error occurred.';
+};
+
 export async function POST(req: NextRequest) {
   try {
     // Extract the authorization header
@@ -52,13 +66,15 @@ export async function POST(req: NextRequest) {
     // Requesting user is an admin, proceed with promotion
     let userIdToPromote: string;
     try {
-      const body = await req.json();
+      const body = await req.json() as PromoteUserRequestBody;
       userIdToPromote = body.userId;
 
       if (!userIdToPromote) {
         throw new Error('User ID to promote is required');
-      }    } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Invalid request body' }, { status: 400 });
+      }
+    } catch (e: unknown) {
+      const message = getErrorMessage(e);
+      return NextResponse.json({ error: message || 'Invalid request body' }, { status: 400 });
     }
     
     // Use admin client to update the target user's role
@@ -98,12 +114,14 @@ export async function POST(req: NextRequest) {
         user: updatedProfile
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       console.error('Unexpected error promoting user:', error);
-      return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
+      return NextResponse.json({ error: message || 'An unexpected error occurred' }, { status: 500 });
     }
-  } catch (error) {
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
     console.error('Unexpected error in promote-user:', error);
-    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
+    return NextResponse.json({ error: message || 'An unexpected error occurred' }, { status: 500 });
   }
 }

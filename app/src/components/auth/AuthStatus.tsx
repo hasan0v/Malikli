@@ -6,13 +6,15 @@ import { useAuth } from '@/context/AuthContext';
 import ProfileDropdown from './ProfileDropdown';
 
 const AuthStatus: React.FC = () => {
-  const { user, profile, loading, signOut } = useAuth();
+  // Removed signOut from destructuring as it's not directly used here.
+  // ProfileDropdown likely handles the signOut action.
+  const { user, profile, loading } = useAuth(); 
 
   if (loading) {
     return <div className="text-sm text-gray-500">Loading user...</div>;
   }
 
-  const isAdmin = profile?.role === 'ADMIN';
+  const isAdmin = profile?.role === 'ADMIN'; // Can also be 'admin' based on previous examples
 
   return (
     <div className="flex items-center space-x-4">
@@ -31,7 +33,8 @@ const AuthStatus: React.FC = () => {
           </Link>
         </>
       )}
-    </div>  );
+    </div>
+  );
 };
 
 export default AuthStatus;

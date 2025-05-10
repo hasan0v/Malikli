@@ -74,8 +74,9 @@ export default function AdminUserCreationPage() {
       setMessage(`User created with ID: ${data.user.id}. You can now promote them to admin.`);
       setShowPromoteForm(true);
       
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while creating the user');
+    } catch (err: Error | unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while creating the user';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -118,7 +119,7 @@ export default function AdminUserCreationPage() {
       
       try {
         data = JSON.parse(responseText);
-      } catch (e) {
+      } catch {
         console.error('Failed to parse response as JSON:', responseText);
         throw new Error(`Invalid response format: ${responseText.substring(0, 100)}`);
       }
@@ -135,9 +136,10 @@ export default function AdminUserCreationPage() {
         router.push('/admin/products/new');
       }, 2000);
       
-    } catch (err: any) {
+    } catch (err: Error | unknown) {
       console.error('Promotion error:', err);
-      setError(err.message || 'An error occurred while promoting the user');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while promoting the user';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

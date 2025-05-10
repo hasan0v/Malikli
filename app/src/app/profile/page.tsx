@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabaseClient';
-import Image from 'next/image';
+// import Image from 'next/image'; // Unused import
 import Link from 'next/link';
 
 interface Address {
@@ -33,10 +33,20 @@ interface NotificationPreference {
   promotions: boolean;
 }
 
+// Helper function to get error messages
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return 'An unknown error occurred.';
+};
+
 const ProfilePage: React.FC = () => {
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, loading: authLoading, signOut } = useAuth(); 
   const router = useRouter();
-  const [name, setName] = useState(profile?.name || '');
+  const [name, setName] = useState(''); 
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -51,37 +61,18 @@ const ProfilePage: React.FC = () => {
     promotions: false
   });
 
-  // If still loading auth state, show loading indicator
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-16">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#76bfd4]"></div>
-      </div>
-    );
-  }
-
-  // If not logged in, redirect to sign in page
-  if (!user) {
-    router.push('/signin');
-    return (
-      <div className="flex justify-center items-center py-16">
-        <div className="text-center">
-          <p className="text-lg text-gray-600 mb-4">Please sign in to access your profile</p>
-          <div className="animate-pulse">Redirecting to sign in...</div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Fetch recent orders and addresses when component mounts
   useEffect(() => {
-    if (!user) return;
+    if (profile?.name) {
+      setName(profile.name);
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    if (!user || authLoading) return; 
     
     const fetchRecentOrders = async () => {
       setOrdersLoading(true);
       try {
-        // In a real app, fetch from Supabase orders table
-        // For now, use dummy data similar to the orders page
         const dummyOrders: Order[] = [
           {
             id: 'ORD-12345',
@@ -96,10 +87,11 @@ const ProfilePage: React.FC = () => {
             total_amount: 59.99,
           },
         ];
-        
+        await new Promise(resolve => setTimeout(resolve, 300)); 
         setRecentOrders(dummyOrders);
-      } catch (err) {
-        console.error('Error fetching orders:', err);
+      } catch (err: unknown) {
+        const msg = getErrorMessage(err); // Use a different variable name
+        console.error('Error fetching orders:', msg);
       } finally {
         setOrdersLoading(false);
       }
@@ -108,8 +100,6 @@ const ProfilePage: React.FC = () => {
     const fetchAddresses = async () => {
       setAddressesLoading(true);
       try {
-        // In a real app, fetch from Supabase addresses table
-        // For now, use dummy data
         const dummyAddresses: Address[] = [
           {
             id: '1',
@@ -135,10 +125,11 @@ const ProfilePage: React.FC = () => {
             type: 'shipping'
           }
         ];
-        
+        await new Promise(resolve => setTimeout(resolve, 300)); 
         setAddresses(dummyAddresses);
-      } catch (err) {
-        console.error('Error fetching addresses:', err);
+      } catch (err: unknown) {
+        const msg = getErrorMessage(err); // Use a different variable name
+        console.error('Error fetching addresses:', msg);
       } finally {
         setAddressesLoading(false);
       }
@@ -146,27 +137,37 @@ const ProfilePage: React.FC = () => {
     
     fetchRecentOrders();
     fetchAddresses();
-  }, [user]);
+  }, [user, authLoading]); 
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/signin');
+    }
+  }, [authLoading, user, router]);
+
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return; 
+
     setSaving(true);
     setMessage('');
     setError('');
 
     try {
-      const { error } = await supabase
+      const { error: updateError } = await supabase 
         .from('profiles')
         .update({
           name: name.trim() || null,
         })
         .eq('id', user.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
       setMessage('Profile updated successfully!');
-    } catch (err: any) {
-      setError(err.message || 'Failed to update profile');
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err); // Use a different variable name
+      setError(msg || 'Failed to update profile');
       console.error('Error updating profile:', err);
     } finally {
       setSaving(false);
@@ -181,11 +182,11 @@ const ProfilePage: React.FC = () => {
   };
   
   const saveNotificationPreferences = () => {
-    // In a real app, save to database
+    console.log("Saving notification preferences:", notificationPreferences);
     setMessage('Notification preferences updated');
     setTimeout(() => setMessage(''), 3000);
   };
-  // Format date for display
+
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
     try {
@@ -195,7 +196,7 @@ const ProfilePage: React.FC = () => {
         month: 'long',
         day: 'numeric',
       }).format(date);
-    } catch (e) {
+    } catch { // Removed unused _err
       return 'Invalid date';
     }
   };
@@ -222,6 +223,25 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center py-16">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#76bfd4]"></div>
+        <span className="ml-3 text-gray-700">Loading account...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex justify-center items-center py-16">
+        <div className="text-center">
+          <p className="text-lg text-gray-600 mb-4">Please sign in to access your profile.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container max-w-6xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold text-[#24225c] mb-8">Your Account</h1>
@@ -229,7 +249,6 @@ const ProfilePage: React.FC = () => {
       {message && <div className="mb-6 p-4 bg-[#a0fff8]/20 text-[#24225c] rounded-lg">{message}</div>}
       {error && <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>}
       
-      {/* Tabs Navigation */}
       <div className="mb-8 border-b border-gray-200">
         <nav className="flex space-x-8" aria-label="Account Tabs">
           <button
@@ -275,7 +294,6 @@ const ProfilePage: React.FC = () => {
         </nav>
       </div>
       
-      {/* Profile Tab Content */}
       {activeTab === 'profile' && (
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-1">
@@ -304,7 +322,7 @@ const ProfilePage: React.FC = () => {
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-sm text-gray-500">Member since</span>
-                    <span className="font-medium text-[#24225c]">April 2025</span>
+                    <span className="font-medium text-[#24225c]">April 2025</span> {/* Placeholder */}
                   </div>
                 </div>
                 
@@ -395,7 +413,6 @@ const ProfilePage: React.FC = () => {
         </div>
       )}
       
-      {/* Orders Tab Content */}
       {activeTab === 'orders' && (
         <div>
           <div className="flex justify-between items-center mb-6">
@@ -418,7 +435,7 @@ const ProfilePage: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
               <h3 className="text-lg font-medium text-gray-700 mb-2">No orders yet</h3>
-              <p className="text-gray-500 mb-6">You haven't placed any orders yet.</p>
+              <p className="text-gray-500 mb-6">You haven&apos;t placed any orders yet.</p>
               <Link 
                 href="/products" 
                 className="inline-flex items-center px-5 py-2 bg-[#b597ff] hover:bg-[#a076ff] text-white font-medium rounded-md transition-colors"
@@ -459,7 +476,7 @@ const ProfilePage: React.FC = () => {
                     </div>
                     
                     <Link 
-                      href={`/orders?id=${order.id}`}
+                      href={`/orders?id=${order.id}`} 
                       className="px-4 py-2 border border-[#76bfd4] text-[#76bfd4] hover:bg-[#76bfd4] hover:text-white rounded-md transition-colors text-sm font-medium"
                     >
                       View Details
@@ -472,7 +489,6 @@ const ProfilePage: React.FC = () => {
         </div>
       )}
       
-      {/* Addresses Tab Content */}
       {activeTab === 'addresses' && (
         <div>
           <div className="flex justify-between items-center mb-6">
@@ -537,7 +553,6 @@ const ProfilePage: React.FC = () => {
         </div>
       )}
       
-      {/* Notifications Tab Content */}
       {activeTab === 'notifications' && (
         <div>
           <div className="mb-6">
@@ -608,7 +623,7 @@ const ProfilePage: React.FC = () => {
           <div className="bg-[#24225c]/5 p-6 md:p-8 rounded-xl mt-8">
             <h3 className="text-xl font-bold text-[#24225c] mb-4">Email Subscriptions</h3>
             <p className="text-gray-600 mb-6">
-              To update your email preferences, please check the links at the bottom of any email we've sent you,
+              To update your email preferences, please check the links at the bottom of any email we&apos;ve sent you,
               or contact our customer support team for assistance.
             </p>
             <a href="mailto:support@malikli.com" className="text-[#76bfd4] hover:underline">

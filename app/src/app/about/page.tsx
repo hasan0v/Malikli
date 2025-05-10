@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
+// import Image from 'next/image';
+// import Link from 'next/link';
 
 export default function AboutPage() {
   return (
@@ -28,7 +28,7 @@ export default function AboutPage() {
           </p>
           <p>
             We collaborate with designers, artists, and creators from around the world to bring you
-            products you won't find anywhere else. Every item tells a story and represents our
+            products you won&apos;t find anywhere else. Every item tells a story and represents our
             dedication to offering something truly special.
           </p>
         </div>
@@ -40,7 +40,7 @@ export default function AboutPage() {
           <h2 className="text-xl font-semibold text-[#b597ff] mb-4">Our Mission</h2>
           <p className="text-[#24225c]">
             To create a community of enthusiasts who appreciate limited edition items,
-            unique designs, and the thrill of catching exclusive drops before they're gone.
+            unique designs, and the thrill of catching exclusive drops before they&apos;re gone.
             We believe in quality over quantity, exclusivity over mass production, and
             the emotional connection between people and products they truly love.
           </p>

@@ -3,19 +3,41 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/utils/supabaseClient';
 import { useAuth } from './AuthContext';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation'; // Removed as router is not used
 
 // Define your types
+export type ProductDetails = {
+  name: string;
+  price: number;
+  image_urls: string[] | null;
+  // Add other product fields if needed from the 'products' table
+  id?: string; // Optional, but good for mapping
+  inventory_count?: number; // For inventory checks
+};
+
 export type CartItem = {
+  id: string; // This can be cart_item_id or a local generated ID
+  product_id: string;
+  quantity: number;
+  product?: ProductDetails; // This will hold the joined product data
+};
+
+// Type for items as fetched from Supabase cart_items with nested products (as an array)
+interface FetchedDbCartItem {
   id: string;
   product_id: string;
   quantity: number;
-  product?: {
-    name: string;
-    price: number;
-    image_urls: string[] | null;
-  };
-};
+  products: ProductDetails[] | null; // Supabase join might return an array
+}
+
+// Type for local cart items that might not have full product details initially
+interface LocalCartItem {
+  id: string; // local generated ID
+  product_id: string;
+  quantity: number;
+  product?: ProductDetails; // May be populated later
+}
+
 
 export interface CartContextType {
   cartItems: CartItem[];
@@ -47,7 +69,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
   const { user } = useAuth();
-  const router = useRouter();
+  // const router = useRouter(); // ESLint: 'router' is assigned a value but never used.
 
   // Open and close cart
   const openCart = () => setIsCartOpen(true);
@@ -61,16 +83,16 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   // Function to fetch cart items from local storage (for non-authenticated users)
-  const getLocalCartItems = () => {
+  const getLocalCartItems = (): LocalCartItem[] => {
     if (typeof window !== 'undefined') {
       const localCart = localStorage.getItem('malikli-cart');
-      return localCart ? JSON.parse(localCart) : [];
+      return localCart ? JSON.parse(localCart) as LocalCartItem[] : [];
     }
     return [];
   };
 
   // Function to save cart items to local storage (for non-authenticated users)
-  const saveLocalCartItems = (items: CartItem[]) => {
+  const saveLocalCartItems = (items: LocalCartItem[]) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('malikli-cart', JSON.stringify(items));
     }
@@ -84,35 +106,47 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         if (user) {
           // For authenticated users, fetch from Supabase
-          const { data, error } = await supabase
+          // 1. Fetch cart items
+          const { data: dbCartData, error: cartError } = await supabase
             .from('cart_items')
-            .select(`
-              id, 
-              product_id, 
-              quantity,
-              products:product_id (
-                name, 
-                price, 
-                image_urls
-              )
-            `)
+            .select('id, product_id, quantity')
             .eq('user_id', user.id);
 
-          if (error) {
-            throw error;
+          if (cartError) {
+            console.error('Error fetching cart items from DB:', cartError);
+            throw cartError;
+          }
+          console.log('Fetched raw cart items for user:', dbCartData); // DEBUG LOG
+
+          if (!dbCartData || dbCartData.length === 0) {
+            setCartItems([]);
+            setIsLoading(false);
+            return;
           }
 
-          // Transform the nested data structure
-          const formattedItems = data.map((item: any) => ({
-            id: item.id,
-            product_id: item.product_id,
-            quantity: item.quantity,
-            product: {
-              name: item.products?.name,
-              price: item.products?.price,
-              image_urls: item.products?.image_urls
-            }
-          }));
+          // 2. Extract product IDs and fetch product details
+          const productIds = dbCartData.map((item) => item.product_id);
+          const { data: productsData, error: productsError } = await supabase
+            .from('products')
+            .select('id, name, price, image_urls, inventory_count') // Ensure all needed fields are here
+            .in('id', productIds);
+
+          if (productsError) {
+            console.error('Error fetching product details for cart:', productsError);
+            throw productsError;
+          }
+          console.log('Fetched product details for cart:', productsData); // DEBUG LOG
+
+          // 3. Combine cart items with product details
+          const formattedItems: CartItem[] = dbCartData.map((cartItem) => {
+            const productDetail = productsData?.find((p) => p.id === cartItem.product_id);
+            return {
+              id: cartItem.id,
+              product_id: cartItem.product_id,
+              quantity: cartItem.quantity,
+              product: productDetail || undefined // Ensure it's ProductDetails or undefined
+            };
+          });
 
           setCartItems(formattedItems);
         } else {
@@ -121,9 +155,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           
           if (localItems.length > 0) {
             // Fetch product details for local cart items
-            const productIds = localItems.map((item: any) => item.product_id);
+            const productIds = localItems.map((item) => item.product_id);
             
-            const { data: products, error } = await supabase
+            const { data: productsData, error } = await supabase
               .from('products')
               .select('id, name, price, image_urls')
               .in('id', productIds);
@@ -131,17 +165,15 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             if (error) {
               throw error;
             }
+            const products = productsData as ProductDetails[];
+
 
             // Map product details to cart items
-            const itemsWithDetails = localItems.map((item: any) => {
-              const product = products.find((p: any) => p.id === item.product_id);
+            const itemsWithDetails: CartItem[] = localItems.map((item) => {
+              const productDetail = products.find((p) => p.id === item.product_id);
               return {
                 ...item,
-                product: product ? {
-                  name: product.name,
-                  price: product.price,
-                  image_urls: product.image_urls
-                } : undefined
+                product: productDetail // productDetail is ProductDetails or undefined
               };
             });
 
@@ -158,127 +190,108 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     fetchCartItems();
-  }, [user]);
+  }, [user]); 
 
   // Add item to cart
   const addToCart = async (productId: string, quantity: number) => {
+    setIsLoading(true); // Start loading
     try {
-      // First, get product details
-      const { data: product, error: productError } = await supabase
+      const { data: productData, error: productError } = await supabase
         .from('products')
         .select('id, name, price, image_urls, inventory_count')
         .eq('id', productId)
         .single();
 
-      if (productError) {
-        throw productError;
-      }
+      if (productError) throw productError;
+      if (!productData) throw new Error('Product not found');
 
-      if (!product) {
-        throw new Error('Product not found');
-      }
-
-      // Check if there's enough inventory
-      if (product.inventory_count < quantity) {
-        throw new Error(`Only ${product.inventory_count} items available`);
+      const productDetailsForOperation = productData as ProductDetails; // Renamed to avoid conflict
+      if (productDetailsForOperation.inventory_count !== undefined && productDetailsForOperation.inventory_count < quantity) {
+        throw new Error(`Only ${productDetailsForOperation.inventory_count} items available`);
       }
 
       if (user) {
-        // For authenticated users
-        // Check if item already exists in cart
         const existingItem = cartItems.find(item => item.product_id === productId);
-
         if (existingItem) {
-          // Update existing item
           const newQuantity = existingItem.quantity + quantity;
-          
           const { error } = await supabase
             .from('cart_items')
             .update({ quantity: newQuantity })
             .eq('user_id', user.id)
             .eq('product_id', productId);
-
-          if (error) {
-            throw error;
-          }
+          if (error) throw error;
         } else {
-          // Add new item
           const { error } = await supabase
             .from('cart_items')
-            .insert({
-              user_id: user.id,
-              product_id: productId,
-              quantity
-            });
-
-          if (error) {
-            throw error;
-          }
+            .insert({ user_id: user.id, product_id: productId, quantity });
+          if (error) throw error;
         }
 
-        // Refetch cart after update
-        const { data, error } = await supabase
+        // Refetch cart using the two-step process
+        const { data: updatedDbCartData, error: updatedCartError } = await supabase
           .from('cart_items')
-          .select(`
-            id, 
-            product_id, 
-            quantity,
-            products:product_id (
-              name, 
-              price, 
-              image_urls
-            )
-          `)
+          .select('id, product_id, quantity')
           .eq('user_id', user.id);
+        
+        console.log('Raw updatedCartDbData from addToCart:', updatedDbCartData); // DEBUG LOG
 
-        if (error) {
-          throw error;
+        if (updatedCartError) throw updatedCartError;
+
+        if (!updatedDbCartData || updatedDbCartData.length === 0) {
+          setCartItems([]);
+        } else {
+          const updatedProductIds = updatedDbCartData.map((item) => item.product_id);
+          const { data: updatedProductsData, error: updatedProductsError } = await supabase
+            .from('products')
+            .select('id, name, price, image_urls, inventory_count')
+            .in('id', updatedProductIds);
+
+          console.log('Fetched updatedProductDetails for cart (addToCart):', updatedProductsData); // DEBUG LOG
+
+          if (updatedProductsError) throw updatedProductsError;
+
+          const formattedItems: CartItem[] = updatedDbCartData.map((cartItem) => {
+            const productDetail = updatedProductsData?.find((p) => p.id === cartItem.product_id);
+            return {
+              id: cartItem.id,
+              product_id: cartItem.product_id,
+              quantity: cartItem.quantity,
+              product: productDetail || undefined
+            };
+          });
+          setCartItems(formattedItems);
         }
-
-        // Transform the nested data structure
-        const formattedItems = data.map((item: any) => ({
-          id: item.id,
-          product_id: item.product_id,
-          quantity: item.quantity,
-          product: {
-            name: item.products?.name,
-            price: item.products?.price,
-            image_urls: item.products?.image_urls
-          }
-        }));
-
-        setCartItems(formattedItems);
       } else {
         // For non-authenticated users
         const localItems = getLocalCartItems();
-        const existingItemIndex = localItems.findIndex((item: any) => item.product_id === productId);
+        const existingItemIndex = localItems.findIndex((item) => item.product_id === productId);
 
         if (existingItemIndex !== -1) {
-          // Update existing item
           localItems[existingItemIndex].quantity += quantity;
+          // Ensure product details are present if somehow missing
+          if (!localItems[existingItemIndex].product) {
+             localItems[existingItemIndex].product = productDetailsForOperation;
+          }
         } else {
-          // Add new item
+          // Add new item with product details
           localItems.push({
-            id: `local-${Date.now()}`,
+            id: `local-${Date.now()}`, 
             product_id: productId,
             quantity,
-            product: {
-              name: product.name,
-              price: product.price,
-              image_urls: product.image_urls
-            }
+            product: productDetailsForOperation 
           });
         }
-
         saveLocalCartItems(localItems);
-        setCartItems(localItems);
+        setCartItems([...localItems] as CartItem[]); // Update state with a new array reference
       }
 
-      // Open the cart after adding an item
-      openCart();
+      openCart(); // Open the cart after adding an item
     } catch (error) {
       console.error('Error adding item to cart:', error);
-      throw error;
+      // Potentially re-throw or set an error state for the UI to consume
+      // throw error; 
+    } finally {
+      setIsLoading(false); // Ensure loading is set to false in all cases
     }
   };
 
@@ -302,10 +315,10 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         // For non-authenticated users
         const localItems = getLocalCartItems();
-        const updatedItems = localItems.filter((item: any) => item.product_id !== productId);
+        const updatedItems = localItems.filter((item) => item.product_id !== productId);
         
         saveLocalCartItems(updatedItems);
-        setCartItems(updatedItems);
+        setCartItems(updatedItems as CartItem[]);
       }
     } catch (error) {
       console.error('Error removing item from cart:', error);
@@ -322,7 +335,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       // Check available inventory
-      const { data: product, error: productError } = await supabase
+      const { data: productData, error: productError } = await supabase
         .from('products')
         .select('inventory_count')
         .eq('id', productId)
@@ -331,8 +344,10 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       if (productError) {
         throw productError;
       }
+      const product = productData as Pick<ProductDetails, 'inventory_count'>;
 
-      if (product.inventory_count < quantity) {
+
+      if (product.inventory_count !== undefined && product.inventory_count < quantity) {
         throw new Error(`Only ${product.inventory_count} items available`);
       }
 
@@ -357,12 +372,12 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         // For non-authenticated users
         const localItems = getLocalCartItems();
-        const updatedItems = localItems.map((item: any) =>
+        const updatedItems = localItems.map((item) =>
           item.product_id === productId ? { ...item, quantity } : item
         );
         
         saveLocalCartItems(updatedItems);
-        setCartItems(updatedItems);
+        setCartItems(updatedItems as CartItem[]);
       }
     } catch (error) {
       console.error('Error updating quantity:', error);
@@ -407,11 +422,14 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             // For each local item, add to user's cart
             for (const item of localItems) {
               // Check if item already exists in database
-              const { data: existingItems } = await supabase
+              const { data: existingItemsData } = await supabase
                 .from('cart_items')
                 .select('id, quantity')
                 .eq('user_id', user.id)
                 .eq('product_id', item.product_id);
+              
+              const existingItems = existingItemsData as {id: string, quantity: number}[] | null;
+
                 
               if (existingItems && existingItems.length > 0) {
                 // Update quantity if item exists
@@ -437,7 +455,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             saveLocalCartItems([]);
             
             // Fetch the updated cart
-            const { data, error } = await supabase
+            const { data: updatedCartDbData, error: fetchError } = await supabase
               .from('cart_items')
               .select(`
                 id, 
@@ -451,21 +469,22 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               `)
               .eq('user_id', user.id);
 
-            if (error) {
-              throw error;
+            if (fetchError) {
+              throw fetchError;
             }
+            const updatedFetchedCart = updatedCartDbData as FetchedDbCartItem[];
+
 
             // Transform the data
-            const formattedItems = data.map((item: any) => ({
-              id: item.id,
-              product_id: item.product_id,
-              quantity: item.quantity,
-              product: {
-                name: item.products?.name,
-                price: item.products?.price,
-                image_urls: item.products?.image_urls
-              }
-            }));
+            const formattedItems: CartItem[] = updatedFetchedCart.map((item) => {
+                const mainProduct = item.products && item.products.length > 0 ? item.products[0] : null;
+                return {
+                  id: item.id,
+                  product_id: item.product_id,
+                  quantity: item.quantity,
+                  product: mainProduct || undefined
+                };
+            });
 
             setCartItems(formattedItems);
           } catch (error) {
@@ -476,7 +495,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     mergeCartsOnLogin();
-  }, [user?.id]);
+  }, [user]); // Changed from user?.id to user for exhaustive-deps
 
   return (
     <CartContext.Provider

@@ -5,6 +5,64 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/utils/supabaseClient';
 
+// Interfaces for the shape of data as fetched from Supabase
+interface FetchedCategory {
+  id: string;
+  name: string;
+}
+
+interface FetchedCollection {
+  id: string;
+  name: string;
+}
+
+interface FetchedImage {
+  id: string;
+  url: string;
+  is_primary: boolean;
+  sort_order?: number; 
+}
+
+interface FetchedSize {
+  id: string;
+  name: string;
+  display_name: string;
+}
+
+interface FetchedColor {
+  id: string;
+  name: string;
+  display_name: string;
+  hex_code: string | null;
+}
+
+interface FetchedVariant {
+  id: string;
+  size_id: string;
+  color_id: string;
+  inventory_count: number;
+  price_adjustment: number;
+}
+
+interface FetchedProductData {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  inventory_count: number;
+  is_active: boolean;
+  created_at: string;
+  drop_scheduled_time?: string | null; // Added to match potential selection
+  product_categories: { category: FetchedCategory[] | null }[];
+  product_collections: { collection: FetchedCollection[] | null }[];
+  product_images: FetchedImage[];
+  product_size_variants: { size: FetchedSize[] | null }[];
+  product_color_variants: { color: FetchedColor[] | null }[];
+  product_variants: FetchedVariant[];
+}
+
+
+// Interface for the final transformed Product state
 interface Product {
   id: string;
   name: string;
@@ -13,19 +71,13 @@ interface Product {
   inventory_count: number;
   is_active: boolean;
   created_at: string;
-  // These will be loaded through joins with the updated DB structure
-  categories: { id: string; name: string }[];
-  collections: { id: string; name: string }[];
-  images: { id: string; url: string; is_primary: boolean }[];
-  sizes: { id: string; name: string; display_name: string }[];
-  colors: { id: string; name: string; display_name: string; hex_code: string | null }[];
-  variants: {
-    id: string;
-    size_id: string;
-    color_id: string;
-    inventory_count: number;
-    price_adjustment: number;
-  }[];
+  drop_scheduled_time?: string | null; // Ensure this is part of Product if used
+  categories: FetchedCategory[];
+  collections: FetchedCollection[];
+  images: FetchedImage[];
+  sizes: FetchedSize[];
+  colors: FetchedColor[];
+  variants: FetchedVariant[];
 }
 
 export default function ProductsPage() {
@@ -33,7 +85,6 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Filter states
   const [filters, setFilters] = useState({
     categoryId: '',
     collectionId: '',
@@ -43,21 +94,17 @@ export default function ProductsPage() {
     maxPrice: '',
   });
   
-  // Filter options
-  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
-  const [collections, setCollections] = useState<{id: string, name: string}[]>([]);
-  const [colors, setColors] = useState<{id: string, name: string, display_name: string, hex_code: string | null}[]>([]);
-  const [sizes, setSizes] = useState<{id: string, name: string, display_name: string}[]>([]);
+  const [categories, setCategories] = useState<FetchedCategory[]>([]);
+  const [collections, setCollections] = useState<FetchedCollection[]>([]);
+  const [colors, setColors] = useState<FetchedColor[]>([]);
+  const [sizes, setSizes] = useState<FetchedSize[]>([]);
 
-  // Fetch all needed data on component mount
   useEffect(() => {
     const fetchAllData = async () => {
       setLoading(true);
       try {
-        // Get current date
         const now = new Date().toISOString();
         
-        // Fetch active products with their relationships
         const { data: productsData, error: productsError } = await supabase
           .from('products')
           .select(`
@@ -68,6 +115,7 @@ export default function ProductsPage() {
             inventory_count, 
             is_active, 
             created_at,
+            drop_scheduled_time, 
             product_categories!inner (
               category:categories!inner(id, name)
             ),
@@ -93,26 +141,39 @@ export default function ProductsPage() {
 
         if (productsError) throw productsError;
         
-        // Transform the data to match our Product interface
-        const transformedProducts: Product[] = (productsData || []).map(product => ({
-          id: product.id,
-          name: product.name,
-          description: product.description,
-          price: product.price,
-          inventory_count: product.inventory_count,
-          is_active: product.is_active,
-          created_at: product.created_at,
-          categories: product.product_categories.map((pc: any) => pc.category),
-          collections: product.product_collections.map((pc: any) => pc.collection),
-          images: product.product_images,
-          sizes: product.product_size_variants.map((psv: any) => psv.size),
-          colors: product.product_color_variants.map((pcv: any) => pcv.color),
-          variants: product.product_variants,
-        }));
+        // Directly cast to FetchedProductData[] if the shape is expected to match
+        const rawSupabaseProducts = productsData as FetchedProductData[] | null;
+
+        const transformedProducts: Product[] = (rawSupabaseProducts || []).map(rawProduct => {
+          // No need to cast rawProduct again if rawSupabaseProducts is already FetchedProductData[]
+          return {
+            id: rawProduct.id,
+            name: rawProduct.name,
+            description: rawProduct.description,
+            price: rawProduct.price,
+            inventory_count: rawProduct.inventory_count,
+            is_active: rawProduct.is_active,
+            created_at: rawProduct.created_at,
+            drop_scheduled_time: rawProduct.drop_scheduled_time,
+            categories: (rawProduct.product_categories || [])
+              .map(pc => pc.category && pc.category.length > 0 ? pc.category[0] : null)
+              .filter(Boolean) as FetchedCategory[],
+            collections: (rawProduct.product_collections || [])
+              .map(pc => pc.collection && pc.collection.length > 0 ? pc.collection[0] : null)
+              .filter(Boolean) as FetchedCollection[],
+            images: rawProduct.product_images || [],
+            sizes: (rawProduct.product_size_variants || [])
+              .map(psv => psv.size && psv.size.length > 0 ? psv.size[0] : null)
+              .filter(Boolean) as FetchedSize[],
+            colors: (rawProduct.product_color_variants || [])
+              .map(pcv => pcv.color && pcv.color.length > 0 ? pcv.color[0] : null)
+              .filter(Boolean) as FetchedColor[],
+            variants: rawProduct.product_variants || [],
+          };
+        });
         
         setProducts(transformedProducts);
         
-        // Fetch all available categories
         const { data: categoriesData, error: categoriesError } = await supabase
           .from('categories')
           .select('id, name')
@@ -120,9 +181,8 @@ export default function ProductsPage() {
           .order('name');
         
         if (categoriesError) throw categoriesError;
-        setCategories(categoriesData || []);
+        setCategories((categoriesData as FetchedCategory[]) || []);
         
-        // Fetch all available collections
         const { data: collectionsData, error: collectionsError } = await supabase
           .from('collections')
           .select('id, name')
@@ -130,29 +190,28 @@ export default function ProductsPage() {
           .order('name');
         
         if (collectionsError) throw collectionsError;
-        setCollections(collectionsData || []);
+        setCollections((collectionsData as FetchedCollection[]) || []);
         
-        // Fetch all available sizes
         const { data: sizesData, error: sizesError } = await supabase
           .from('product_sizes')
           .select('id, name, display_name')
           .order('sort_order');
         
         if (sizesError) throw sizesError;
-        setSizes(sizesData || []);
+        setSizes((sizesData as FetchedSize[]) || []);
         
-        // Fetch all available colors
         const { data: colorsData, error: colorsError } = await supabase
           .from('product_colors')
           .select('id, name, display_name, hex_code')
           .order('sort_order');
         
         if (colorsError) throw colorsError;
-        setColors(colorsData || []);
+        setColors((colorsData as FetchedColor[]) || []);
         
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'An unknown error occurred';
         console.error('Error fetching products data:', err);
-        setError(err.message);
+        setError(message);
       } finally {
         setLoading(false);
       }
@@ -161,40 +220,27 @@ export default function ProductsPage() {
     fetchAllData();
   }, []);
   
-  // Filter products based on selected filters
   const filteredProducts = products.filter((product) => {
-    // Category filter
     if (filters.categoryId && !product.categories.some(category => category.id === filters.categoryId)) {
       return false;
     }
-    
-    // Collection filter
     if (filters.collectionId && !product.collections.some(collection => collection.id === filters.collectionId)) {
       return false;
     }
-    
-    // Color filter
     if (filters.colorId && !product.colors.some(color => color.id === filters.colorId)) {
       return false;
     }
-    
-    // Size filter
     if (filters.sizeId && !product.sizes.some(size => size.id === filters.sizeId)) {
       return false;
     }
-    
-    // Price range filter
     const minPrice = filters.minPrice ? parseFloat(filters.minPrice) : 0;
     const maxPrice = filters.maxPrice ? parseFloat(filters.maxPrice) : Infinity;
-    
     if (product.price < minPrice || product.price > maxPrice) {
       return false;
     }
-    
     return true;
   });
   
-  // Handle filter changes
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
     setFilters(prev => ({
@@ -203,7 +249,6 @@ export default function ProductsPage() {
     }));
   };
   
-  // Reset all filters
   const resetFilters = () => {
     setFilters({
       categoryId: '',
@@ -215,29 +260,21 @@ export default function ProductsPage() {
     });
   };
 
-  // Calculate inventory for display
   const calculateInventory = (product: Product): number => {
-    // If we have variants, sum their inventory
     if (product.variants && product.variants.length > 0) {
       return product.variants.reduce((sum, variant) => sum + variant.inventory_count, 0);
     }
-    // Otherwise use the product inventory count
     return product.inventory_count;
   };
 
-  // Get the primary image URL or first available
   const getMainImageUrl = (product: Product): string => {
     if (!product.images || product.images.length === 0) {
-      return '/placeholder-product.jpg'; // Provide a placeholder image
+      return '/placeholder-product.jpg';
     }
-    
-    // Try to find the primary image first
     const primaryImage = product.images.find(img => img.is_primary);
     if (primaryImage) {
       return primaryImage.url;
     }
-    
-    // Otherwise use the first image
     return product.images[0].url;
   };
 
@@ -265,7 +302,6 @@ export default function ProductsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Promotional Banner */}
       <div className="relative h-64 mb-8 rounded-lg overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-[#24225c] to-[#b597ff]"></div>
         <div className="absolute inset-0 flex items-center justify-center text-white z-10">
@@ -276,18 +312,15 @@ export default function ProductsPage() {
         </div>
       </div>
       
-      {/* Introduction Narrative */}
       <div className="mb-8 text-center max-w-3xl mx-auto">
         <p className="text-lg text-[#24225c]">
           Timeless silhouettes re‑imagined for the modern tastemaker, crafted in limited numbers for those who curate rather than consume.
         </p>
       </div>
       
-      {/* Enhanced Filters */}
       <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap gap-4 flex-1">
-            {/* Category Filter */}
             <div className="w-full sm:w-auto">
               <label className="block text-sm font-medium text-[#24225c] mb-1">Category</label>
               <select 
@@ -305,7 +338,6 @@ export default function ProductsPage() {
               </select>
             </div>
             
-            {/* Collection Filter */}
             <div className="w-full sm:w-auto">
               <label className="block text-sm font-medium text-[#24225c] mb-1">Collection</label>
               <select
@@ -323,7 +355,6 @@ export default function ProductsPage() {
               </select>
             </div>
             
-            {/* Color Filter */}
             <div className="w-full sm:w-auto">
               <label className="block text-sm font-medium text-[#24225c] mb-1">Color</label>
               <div className="flex gap-1 mb-1">
@@ -355,7 +386,6 @@ export default function ProductsPage() {
               </select>
             </div>
             
-            {/* Size Filter */}
             <div className="w-full sm:w-auto">
               <label className="block text-sm font-medium text-[#24225c] mb-1">Size</label>
               <select
@@ -373,7 +403,6 @@ export default function ProductsPage() {
               </select>
             </div>
             
-            {/* Price Range Filters */}
             <div className="w-full sm:w-auto flex gap-2 items-end">
               <div>
                 <label className="block text-sm font-medium text-[#24225c] mb-1">Min $</label>
@@ -403,7 +432,6 @@ export default function ProductsPage() {
             </div>
           </div>
           
-          {/* Reset Filters Button */}
           <button
             onClick={resetFilters}
             className="bg-gray-200 hover:bg-gray-300 text-[#24225c] font-medium py-2 px-4 rounded transition-colors duration-300"
@@ -413,7 +441,6 @@ export default function ProductsPage() {
         </div>
       </div>
       
-      {/* Products Grid */}
       {filteredProducts.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <p className="text-gray-500 mb-2">No products found matching your criteria.</p>
@@ -444,7 +471,6 @@ export default function ProductsPage() {
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                  {/* Show "Low Stock" label if inventory is 10 or fewer */}
                   {inventory <= 10 && inventory > 0 && (
                     <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
                       {inventory <= 5 ? `Only ${inventory} left` : 'Low Stock'}
@@ -456,7 +482,6 @@ export default function ProductsPage() {
                     </div>
                   )}
                   
-                  {/* Show category badge */}
                   {product.categories.length > 0 && (
                     <div className="absolute top-2 left-2 bg-[#24225c] text-white text-xs px-2 py-1 rounded">
                       {product.categories[0].name}
@@ -469,7 +494,6 @@ export default function ProductsPage() {
                   </h2>
                   <p className="text-gray-600 mt-1">${product.price.toFixed(2)}</p>
                   
-                  {/* Display available colors */}
                   {product.colors.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {product.colors.slice(0, 5).map((color) => (
@@ -486,7 +510,6 @@ export default function ProductsPage() {
                     </div>
                   )}
                   
-                  {/* Display available sizes */}
                   {product.sizes.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {product.sizes.slice(0, 5).map((size) => (

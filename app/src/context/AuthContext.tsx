@@ -9,7 +9,8 @@ interface Profile {
   id: string;
   email: string | undefined;
   role: string;
-  name?: string;
+  name?: string | null; // Allow name to be null
+  updated_at?: string; // Add updated_at if it's part of your Profile type
   // Add other profile fields as needed
 }
 
@@ -30,6 +31,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 interface AuthProviderProps {
   children: ReactNode;
 }
+
+// Helper function to get error messages
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return 'An unexpected error occurred.';
+};
+
 
 // Create the AuthProvider component
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
@@ -61,8 +73,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setLoading(false);
         }
         // Profile fetching depends on the user, handled in the next effect
-      } catch (err: any) {
-        console.error("Unhandled error getting initial session:", err);
+      } catch (err: unknown) {
+        const message = getErrorMessage(err);
+        console.error("Unhandled error getting initial session:", message);
         setLoading(false);
       }
     };
@@ -80,7 +93,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // If user logs out, clear profile and stop loading
         if (!currentUser) {
           setProfile(null);
-          setLoading(false);
+          setLoading(false); // Stop loading when user is confirmed to be null
         }
         // Profile fetching depends on the user, handled in the next effect
       }
@@ -92,7 +105,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
   // Helper function to create user profile
-  const createUserProfile = async (currentUser: User) => {
+  const createUserProfile = async (currentUser: User): Promise<Profile | null> => {
     try {
       const { error } = await supabase.from('profiles').insert({
         id: currentUser.id,
@@ -108,15 +121,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       // Fetch the newly created profile
-      const { data: newProfile } = await supabase
+      const { data: newProfileData } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
         .maybeSingle();
         
-      return newProfile as Profile;
-    } catch (err) {
-      console.error('Error in createUserProfile:', err);
+      return newProfileData as Profile | null;
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      console.error('Error in createUserProfile:', message);
       return null;
     }
   };
@@ -147,8 +161,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   const newProfile = await createUserProfile(user);
                   setProfile(newProfile);
               }
-          } catch (err: any) {
-              console.error("Unhandled error fetching profile:", err);
+          } catch (err: unknown) {
+              const message = getErrorMessage(err);
+              console.error("Unhandled error fetching profile:", message);
               setProfile(null);
           } finally {
               setLoading(false); // Stop loading after fetch attempt
@@ -157,25 +172,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       fetchProfile();
     } else {
       // No user, ensure profile is null.
-      // Loading state is handled by the auth listener or initial load.
       if (profile !== null) setProfile(null);
+      // If mounted and no user, we are done loading for this state.
+      // The initial auth state check already handles setLoading(false) if no user initially.
+      // If user becomes null due to logout, the auth listener handles setLoading(false).
     }
-  }, [user]); // Dependency on user state
+  }, [user, profile]); // Added profile to dependency array to avoid stale closure on setProfile(null)
 
   // Sign out function
   const signOut = async () => {
-    setLoading(true);
+    setLoading(true); // Indicate loading when sign out starts
     try {
         const { error } = await supabase.auth.signOut();
         if (error) {
             console.error('Error signing out:', error);
-            // Even if signout fails, the state might change, let listener handle it
-            // setLoading(false); // Let listener handle loading state
+             setLoading(false); // Stop loading if sign out itself errors
         }
         // State updates (session, user, profile to null) are handled by onAuthStateChange listener
-    } catch (err: any) {
-        console.error('Unhandled error signing out:', err);
-        // setLoading(false); // Let listener handle loading state
+        // The listener will also set loading to false once the user is confirmed null.
+    } catch (err: unknown) {
+        const message = getErrorMessage(err);
+        console.error('Unhandled error signing out:', message);
+        setLoading(false); // Stop loading on unhandled error during sign out
     }
   };
   // Only set these values after the component has mounted on the client
@@ -184,7 +202,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     session: mounted ? session : null,
     user: mounted ? user : null, 
     profile: mounted ? profile : null,
-    loading: mounted ? loading : true, // Always show loading initially
+    loading: mounted ? loading : true, // Always show loading initially on server/first client render
     signOut,
   };
 

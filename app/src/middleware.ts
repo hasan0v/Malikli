@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 // Remove import of cookies from next/headers - not needed in middleware
 // Import ReadonlyRequestCookies for type definition only
-import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies';
+// import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies';
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({

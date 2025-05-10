@@ -128,7 +128,7 @@ export default function DeliveryPage() {
           <div className="bg-[#ced1ff] bg-opacity-20 p-6 rounded-lg">
             <h3 className="text-lg font-medium text-[#24225c] mb-3">Tracking International Orders</h3>
             <p className="text-[#24225c]">
-              All international shipments include tracking. Once your order ships, you'll receive 
+              All international shipments include tracking. Once your order ships, you&apos;ll receive 
               tracking information via email. Please note that tracking updates may be limited 
               once a package enters customs in the destination country.
             </p>
@@ -143,7 +143,7 @@ export default function DeliveryPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div>
             <p className="text-[#24225c] mb-4">
-              After your order ships, you'll receive a shipping confirmation email with tracking information.
+              After your order ships, you&apos;ll receive a shipping confirmation email with tracking information.
               You can also track your order by entering your order number and email below or by visiting your account dashboard.
             </p>
             
@@ -200,7 +200,7 @@ export default function DeliveryPage() {
                 <span className="h-5 w-5 rounded-full bg-red-500 mt-0.5 mr-2 flex-shrink-0"></span>
                 <div>
                   <span className="font-medium text-[#24225c]">Issue</span>
-                  <p className="text-sm text-gray-600">There's a problem with your delivery.</p>
+                  <p className="text-sm text-gray-600">There&apos;s a problem with your delivery.</p>
                 </div>
               </li>
             </ul>

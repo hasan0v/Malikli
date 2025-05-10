@@ -1,63 +1,84 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useCart, CartContextType } from '@/context/CartContext'; // Import CartContextType
+// import React, { useState, useEffect } from 'react'; // useEffect might not be needed anymore
+import { useCart } from '@/context/CartContext'; 
+
+// Helper function to get error messages - define or import this
+// const getErrorMessage = (error: unknown): string => {
+//   if (error instanceof Error) return error.message;
+//   if (typeof error === 'string') return error;
+//   if (error && typeof (error as { message?: unknown }).message === 'string') {
+//     return (error as { message: string }).message;
+//   }
+//   return 'An unknown error occurred.';
+// };
 
 const CartIcon = () => {
-  // State to store cart data
-  const [cartCount, setCartCount] = useState(0);
-  const [handleClick, setHandleClick] = useState(() => () => {});
-  const [error, setError] = useState<string | null>(null);
+  // Call useCart at the top level.
+  // This hook will throw an error if CartProvider is not an ancestor,
+  // which should be caught by an Error Boundary.
+  // Or, if useCart is designed to return an error state, we can check that.
+  const { cartCount, openCart, isLoading } = useCart();
+  
+  // Local error state for issues specific to this component's interactions, if any.
+  // For context loading issues, rely on isLoading from context or Error Boundaries.
+  // const [componentError, setComponentError] = useState<string | null>(null);
 
-  // Call useCart at the top level and provide explicit type
-  let cartContext: CartContextType | undefined;
+
+  // The useEffect to sync from context to local state is no longer needed
+  // as we are using context values directly.
+
+  // If an error occurs because CartProvider is missing, useCart() will throw.
+  // The component rendering will stop, and an Error Boundary should display an error.
+  // If you want to handle it locally (though not standard for missing provider):
+  /*
+  let cartData;
+  let cartError = null;
   try {
-    cartContext = useCart();
-  } catch (err: any) {
+    cartData = useCart();
+  } catch (err: unknown) {
     console.error('Error initializing cart context in CartIcon:', err);
-    // Set error state in useEffect to avoid issues during initial render
-    useEffect(() => {
-      setError('Failed to load cart context.');
-    }, []);
+    cartError = getErrorMessage(err); // Use your error message helper
   }
 
-  // Only access the context values after component has mounted on client
-  useEffect(() => {
-    if (cartContext) {
-      try {
-        // Use the context values obtained outside useEffect
-        setCartCount(cartContext.cartCount || 0);
-        setHandleClick(() => cartContext.openCart);
-        setError(null); // Clear error if context is accessed successfully
-      } catch (err) {
-        console.error('Error using cart context values in CartIcon useEffect:', err);
-        setError('Error updating cart state.');
-      }
-    } else if (!error) {
-      // Handle case where context might still be undefined but no error was caught initially
-      console.warn('Cart context not available in CartIcon useEffect.');
-      // setError('Cart context unavailable.'); // Optionally set error
-    }
-    // Dependencies: cartContext object, specific values, and error state
-  }, [cartContext, cartContext?.cartCount, cartContext?.openCart, error]);
-
-  if (error) {
-    // Optionally render an error state or a disabled icon
+  if (cartError) {
     return (
-      <div className="relative p-2 text-gray-400" title={error}>
-        {/* Simplified SVG or error indicator */}
+      <div className="relative p-2 text-gray-400" title={cartError}>
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-7 h-7 inline-block">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
         </svg>
       </div>
     );
   }
+  
+  // Then destructure from cartData if no error
+  // const { cartCount, openCart, isLoading } = cartData || { cartCount: 0, openCart: () => {}, isLoading: true };
+  */
+
+
+  // Handle click should directly use openCart from context.
+  const handleClick = () => {
+    if (openCart) {
+      openCart();
+    } else {
+      // This case should ideally not happen if useCart guarantees openCart is defined
+      // or throws an error if context is not set up correctly.
+      console.warn('openCart function is not available from CartContext.');
+    }
+  };
+
+  // Optional: Show a loading state or a disabled icon if context is loading
+  // This depends on how `isLoading` is handled in your CartContext.
+  // If `isLoading` is true, you might want to render a different state.
+  // For simplicity, we'll assume `cartCount` and `openCart` are usable even during loading,
+  // or that `isLoading` primarily affects display within `CartSidebar`.
 
   return (
     <button
       onClick={handleClick}
       className="relative p-2 text-indigo-600 hover:text-indigo-800 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
       aria-label="Shopping cart"
+      disabled={isLoading} // Optionally disable while context is loading
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

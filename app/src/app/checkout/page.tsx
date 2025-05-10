@@ -57,7 +57,7 @@ const FREE_SHIPPING_THRESHOLDS: Partial<Record<'standard' | 'express' | 'overnig
 
 export default function CheckoutPage() {
   const { cartItems, cartTotal, clearCart } = useCart();
-  const { user, profile } = useAuth();
+  const { profile } = useAuth();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState<'shipping' | 'payment' | 'review'>('shipping');

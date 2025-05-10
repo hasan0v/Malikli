@@ -1,13 +1,70 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabaseClient';
-import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 
+// Interfaces for the shape of data as fetched from Supabase
+interface FetchedCategory {
+  id: string;
+  name: string;
+}
+
+interface FetchedCollection {
+  id: string;
+  name: string;
+}
+
+interface FetchedImage {
+  id: string;
+  url: string;
+  is_primary: boolean;
+  sort_order: number;
+}
+
+interface FetchedSize {
+  id: string;
+  name: string;
+  display_name: string;
+}
+
+interface FetchedColor {
+  id: string;
+  name: string;
+  display_name: string;
+  hex_code: string | null;
+}
+
+interface FetchedVariant {
+  id: string;
+  size_id: string;
+  color_id: string;
+  inventory_count: number;
+  price_adjustment: number;
+}
+
+interface FetchedProductData {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  inventory_count: number;
+  is_active: boolean;
+  drop_scheduled_time: string | null;
+  created_at: string;
+  updated_at: string;
+  product_categories: { category: FetchedCategory[] | null }[];
+  product_collections: { collection: FetchedCollection[] | null }[];
+  product_images: FetchedImage[];
+  product_size_variants: { size: FetchedSize[] | null }[];
+  product_color_variants: { color: FetchedColor[] | null }[];
+  product_variants: FetchedVariant[];
+}
+
+// Interface for the final transformed Product state
 interface Product {
   id: string;
   name: string;
@@ -18,63 +75,24 @@ interface Product {
   drop_scheduled_time: string | null;
   created_at: string;
   updated_at: string;
-  // Normalized relationships
-  categories: {
-    id: string;
-    name: string;
-  }[];
-  collections: {
-    id: string;
-    name: string;
-  }[];
-  images: {
-    id: string;
-    url: string;
-    is_primary: boolean;
-    sort_order: number;
-  }[];
-  sizes: {
-    id: string;
-    name: string;
-    display_name: string;
-  }[];
-  colors: {
-    id: string;
-    name: string;
-    display_name: string;
-    hex_code: string | null;
-  }[];
-  variants: {
-    id: string;
-    size_id: string;
-    color_id: string;
-    inventory_count: number;
-    price_adjustment: number;
-  }[];
+  categories: FetchedCategory[];
+  collections: FetchedCollection[];
+  images: FetchedImage[];
+  sizes: FetchedSize[];
+  colors: FetchedColor[];
+  variants: FetchedVariant[];
 }
 
-// Product variant with size and color objects
-interface ProductVariant {
+interface ProductVariantDisplay {
   id: string;
   inventory_count: number;
-  price: number; // Base price + adjustment
-  size: {
-    id: string;
-    name: string;
-    display_name: string;
-  };
-  color: {
-    id: string;
-    name: string;
-    display_name: string;
-    hex_code: string | null;
-  };
+  price: number;
+  size: FetchedSize;
+  color: FetchedColor;
 }
 
 export default function ProductDetailPage() {
   const params = useParams();
-  const router = useRouter();
-  const { user } = useAuth();
   const { addToCart, openCart } = useCart();
   
   const [product, setProduct] = useState<Product | null>(null);
@@ -84,30 +102,25 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   
-  // Variant selection
   const [selectedSizeId, setSelectedSizeId] = useState<string | null>(null);
   const [selectedColorId, setSelectedColorId] = useState<string | null>(null);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariantDisplay | null>(null);
   
-  // Error states
   const [showSizeError, setShowSizeError] = useState(false);
   const [showColorError, setShowColorError] = useState(false);
   
-  // Image zoom
   const [showZoom, setShowZoom] = useState(false);
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
 
   const productId = params.id as string;
 
-  // Load product data with all related information
   useEffect(() => {
     const fetchProduct = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        // Fetch product with all its relationships
-        const { data, error } = await supabase
+        const { data: rawSupabaseProduct, error: fetchError } = await supabase
           .from('products')
           .select(`
             id, 
@@ -141,61 +154,66 @@ export default function ProductDetailPage() {
           .eq('id', productId)
           .single();
 
-        if (error) {
-          throw error;
+        if (fetchError) {
+          if (fetchError.code === 'PGRST116') throw new Error('Product not found'); // Specific error for not found
+          throw fetchError;
         }
+        if (!rawSupabaseProduct) throw new Error('Product not found');
 
-        if (!data) {
-          throw new Error('Product not found');
-        }
+        const typedRawProduct = rawSupabaseProduct as FetchedProductData; // Cast to our best guess for structure
 
-        // Transform data to match our Product interface
         const transformedProduct: Product = {
-          id: data.id,
-          name: data.name,
-          description: data.description,
-          price: data.price,
-          inventory_count: data.inventory_count,
-          is_active: data.is_active,
-          drop_scheduled_time: data.drop_scheduled_time,
-          created_at: data.created_at,
-          updated_at: data.updated_at,
-          categories: data.product_categories.map((pc: any) => pc.category),
-          collections: data.product_collections.map((pc: any) => pc.collection),
-          images: data.product_images,
-          sizes: data.product_size_variants.map((psv: any) => psv.size),
-          colors: data.product_color_variants.map((pcv: any) => pcv.color),
-          variants: data.product_variants
+          id: typedRawProduct.id,
+          name: typedRawProduct.name,
+          description: typedRawProduct.description,
+          price: typedRawProduct.price,
+          inventory_count: typedRawProduct.inventory_count,
+          is_active: typedRawProduct.is_active,
+          drop_scheduled_time: typedRawProduct.drop_scheduled_time,
+          created_at: typedRawProduct.created_at,
+          updated_at: typedRawProduct.updated_at,
+          categories: (typedRawProduct.product_categories || [])
+            .map(pc => pc.category && pc.category.length > 0 ? pc.category[0] : null)
+            .filter(Boolean) as FetchedCategory[],
+          collections: (typedRawProduct.product_collections || [])
+            .map(pc => pc.collection && pc.collection.length > 0 ? pc.collection[0] : null)
+            .filter(Boolean) as FetchedCollection[],
+          images: typedRawProduct.product_images || [],
+          sizes: (typedRawProduct.product_size_variants || [])
+            .map(psv => psv.size && psv.size.length > 0 ? psv.size[0] : null)
+            .filter(Boolean) as FetchedSize[],
+          colors: (typedRawProduct.product_color_variants || [])
+            .map(pcv => pcv.color && pcv.color.length > 0 ? pcv.color[0] : null)
+            .filter(Boolean) as FetchedColor[],
+          variants: typedRawProduct.product_variants || []
         };
 
         setProduct(transformedProduct);
         
-        // Set the first image as the selected one (primary if exists)
         if (transformedProduct.images && transformedProduct.images.length > 0) {
           const primaryImage = transformedProduct.images.find(img => img.is_primary);
           setSelectedImage(primaryImage ? primaryImage.url : transformedProduct.images[0].url);
         }
         
-        // Set default selected size and color if available
-        if (transformedProduct.sizes && transformedProduct.sizes.length > 0) {
+        if (transformedProduct.sizes && transformedProduct.sizes.length > 0 && transformedProduct.sizes[0]) {
           setSelectedSizeId(transformedProduct.sizes[0].id);
         }
         
-        if (transformedProduct.colors && transformedProduct.colors.length > 0) {
+        if (transformedProduct.colors && transformedProduct.colors.length > 0 && transformedProduct.colors[0]) {
           setSelectedColorId(transformedProduct.colors[0].id);
         }
         
-        // If there's only one size and one color, select the variant automatically
-        if (transformedProduct.sizes.length === 1 && transformedProduct.colors.length === 1) {
+        if (transformedProduct.sizes.length === 1 && transformedProduct.colors.length === 1 && transformedProduct.sizes[0] && transformedProduct.colors[0]) {
           findAndSetSelectedVariant(
             transformedProduct,
             transformedProduct.sizes[0].id,
             transformedProduct.colors[0].id
           );
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'An unknown error occurred';
         console.error('Error fetching product:', err);
-        setError(err.message);
+        setError(message);
       } finally {
         setLoading(false);
       }
@@ -206,7 +224,6 @@ export default function ProductDetailPage() {
     }
   }, [productId]);
   
-  // Update selected variant when size or color changes
   useEffect(() => {
     if (product && selectedSizeId && selectedColorId) {
       findAndSetSelectedVariant(product, selectedSizeId, selectedColorId);
@@ -215,29 +232,29 @@ export default function ProductDetailPage() {
     }
   }, [selectedSizeId, selectedColorId, product]);
   
-  // Find and set the selected variant based on size and color
-  const findAndSetSelectedVariant = (product: Product, sizeId: string, colorId: string) => {
-    const variant = product.variants.find(v => v.size_id === sizeId && v.color_id === colorId);
+  const findAndSetSelectedVariant = (currentProduct: Product, sizeId: string, colorId: string) => {
+    const variant = currentProduct.variants.find(v => v.size_id === sizeId && v.color_id === colorId);
     
     if (variant) {
-      const size = product.sizes.find(s => s.id === sizeId);
-      const color = product.colors.find(c => c.id === colorId);
+      const size = currentProduct.sizes.find(s => s.id === sizeId);
+      const color = currentProduct.colors.find(c => c.id === colorId);
       
       if (size && color) {
         setSelectedVariant({
           id: variant.id,
           inventory_count: variant.inventory_count,
-          price: product.price + variant.price_adjustment,
+          price: currentProduct.price + variant.price_adjustment,
           size,
           color
         });
+      } else {
+        setSelectedVariant(null);
       }
     } else {
       setSelectedVariant(null);
     }
   };
 
-  // Quantity control handlers
   const handleQuantityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setQuantity(parseInt(e.target.value, 10));
   };
@@ -255,7 +272,6 @@ export default function ProductDetailPage() {
     }
   };
   
-  // Size and color selection handlers
   const handleSizeChange = (sizeId: string) => {
     setSelectedSizeId(sizeId);
     setShowSizeError(false);
@@ -266,33 +282,27 @@ export default function ProductDetailPage() {
     setShowColorError(false);
   };
   
-  // Add to cart handler
   const handleAddToCart = async () => {
     if (!product) return;
     
-    // Validate size and color selection if we have variants
     if (product.variants.length > 0) {
       if (!selectedSizeId) {
         setShowSizeError(true);
         return;
       }
-      
       if (!selectedColorId) {
         setShowColorError(true);
         return;
       }
-      
       if (!selectedVariant) {
         alert("Selected combination is not available");
         return;
       }
-      
       if (selectedVariant.inventory_count < quantity) {
         alert("Not enough inventory available");
         return;
       }
     } else {
-      // Check regular inventory if no variants
       if (product.inventory_count < quantity) {
         alert("Not enough inventory available");
         return;
@@ -302,66 +312,38 @@ export default function ProductDetailPage() {
     setAddingToCart(true);
     
     try {
-      // Add product to cart with variant information if present
-      await addToCart({
-        product_id: product.id,
-        name: product.name,
-        price: selectedVariant ? selectedVariant.price : product.price,
-        quantity,
-        image_url: selectedImage || '',
-        variant_id: selectedVariant?.id,
-        size_id: selectedSizeId,
-        size_name: selectedVariant?.size.display_name,
-        color_id: selectedColorId,
-        color_name: selectedVariant?.color.display_name,
-        color_hex: selectedVariant?.color.hex_code || undefined,
-      });
-      
-      // Open cart after adding
+      await addToCart(product.id, quantity); 
       openCart();
-    } catch (err) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to add product to cart.";
       console.error("Failed to add product to cart:", err);
-      alert("Failed to add product to cart. Please try again.");
+      alert(`${message} Please try again.`);
     } finally {
       setAddingToCart(false);
     }
   };
   
-  // Image zoom handlers
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!showZoom) return;
-    
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - left) / width;
     const y = (e.clientY - top) / height;
-    
     setZoomPosition({ x, y });
   };
   
-  // Get inventory count based on variant selection
   const getAvailableInventory = (): number => {
-    if (selectedVariant) {
-      return selectedVariant.inventory_count;
-    }
+    if (selectedVariant) return selectedVariant.inventory_count;
     return product?.inventory_count || 0;
   };
   
-  // Get current price based on variant selection
   const getCurrentPrice = (): number => {
-    if (selectedVariant) {
-      return selectedVariant.price;
-    }
+    if (selectedVariant) return selectedVariant.price;
     return product?.price || 0;
   };
   
-  // Check if a specific variant is available
   const isVariantAvailable = (sizeId: string, colorId: string): boolean => {
     if (!product) return false;
-    
-    const variant = product.variants.find(
-      v => v.size_id === sizeId && v.color_id === colorId
-    );
-    
+    const variant = product.variants.find(v => v.size_id === sizeId && v.color_id === colorId);
     return variant ? variant.inventory_count > 0 : false;
   };
 
@@ -392,7 +374,6 @@ export default function ProductDetailPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-wrap -mx-4">
-        {/* Product Images */}
         <div className="w-full md:w-1/2 px-4 mb-8 md:mb-0">
           <div className="relative h-96 bg-gray-100 rounded-lg overflow-hidden mb-4"
                onMouseEnter={() => setShowZoom(true)}
@@ -406,6 +387,7 @@ export default function ProductDetailPage() {
                   alt={product.name}
                   fill
                   className="object-contain"
+                  sizes="(max-width: 768px) 100vw, 50vw"
                 />
                 {showZoom && (
                   <div className="absolute top-0 left-full ml-4 w-64 h-64 rounded-lg overflow-hidden border-2 border-[#76bfd4] hidden md:block">
@@ -415,7 +397,7 @@ export default function ProductDetailPage() {
                         backgroundImage: `url(${selectedImage})`, 
                         backgroundPosition: `${zoomPosition.x * 100}% ${zoomPosition.y * 100}%`,
                         backgroundSize: 'cover',
-                        transform: 'translate(-' + (zoomPosition.x * 80) + '%, -' + (zoomPosition.y * 80) + '%)'
+                        transform: `translate(-${zoomPosition.x * 80}%, -${zoomPosition.y * 80}%)`
                       }}
                     ></div>
                   </div>
@@ -426,7 +408,6 @@ export default function ProductDetailPage() {
             )}
           </div>
           
-          {/* Thumbnails */}
           {product.images && product.images.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {product.images.sort((a, b) => a.sort_order - b.sort_order).map((image) => (
@@ -440,9 +421,10 @@ export default function ProductDetailPage() {
                   <div className="relative w-full h-full">
                     <Image
                       src={image.url}
-                      alt={product.name}
+                      alt={`${product.name} thumbnail`}
                       fill
                       className="object-cover"
+                       sizes="64px"
                     />
                   </div>
                 </button>
@@ -451,9 +433,7 @@ export default function ProductDetailPage() {
           )}
         </div>
         
-        {/* Product Info */}
         <div className="w-full md:w-1/2 px-4">
-          {/* Categories */}
           {product.categories && product.categories.length > 0 && (
             <div className="mb-2 text-sm">
               <span className="text-gray-500">
@@ -462,13 +442,9 @@ export default function ProductDetailPage() {
             </div>
           )}
           
-          {/* Product Name */}
           <h1 className="text-3xl font-bold text-[#24225c] mb-2">{product.name}</h1>
-          
-          {/* Price */}
           <p className="text-2xl text-[#24225c] mb-4">${currentPrice.toFixed(2)}</p>
           
-          {/* Collections */}
           {product.collections && product.collections.length > 0 && (
             <div className="mb-4">
               <span className="inline-block bg-[#f0f0f0] text-[#24225c] px-2 py-1 text-xs rounded-full">
@@ -477,7 +453,6 @@ export default function ProductDetailPage() {
             </div>
           )}
           
-          {/* Description */}
           {product.description && (
             <div className="mb-6">
               <h2 className="text-lg font-semibold text-[#24225c] mb-2">Description</h2>
@@ -485,10 +460,8 @@ export default function ProductDetailPage() {
             </div>
           )}
           
-          {/* Divider */}
           <div className="border-t border-gray-200 my-6"></div>
           
-          {/* Size Selection */}
           {product.sizes && product.sizes.length > 0 && (
             <div className="mb-6">
               <div className="flex justify-between mb-2">
@@ -499,9 +472,9 @@ export default function ProductDetailPage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {product.sizes.map((size) => {
-                  // Check if any variant with this size has inventory
                   const hasInventory = product.variants.length === 0 || 
-                    product.colors.some(color => isVariantAvailable(size.id, color.id));
+                    (product.colors.length > 0 && product.colors.some(color => isVariantAvailable(size.id, color.id))) ||
+                    (product.colors.length === 0 && product.variants.some(v => v.size_id === size.id && v.inventory_count > 0));
                   
                   return (
                     <button
@@ -524,7 +497,6 @@ export default function ProductDetailPage() {
             </div>
           )}
           
-          {/* Color Selection */}
           {product.colors && product.colors.length > 0 && (
             <div className="mb-6">
               <div className="flex justify-between mb-2">
@@ -535,10 +507,10 @@ export default function ProductDetailPage() {
               </div>
               <div className="flex flex-wrap gap-3">
                 {product.colors.map((color) => {
-                  // Check if any variant with this color has inventory
                   const hasInventory = product.variants.length === 0 || 
-                    product.sizes.some(size => isVariantAvailable(size.id, color.id));
-                    
+                    (product.sizes.length > 0 && product.sizes.some(size => isVariantAvailable(size.id, color.id))) ||
+                    (product.sizes.length === 0 && product.variants.some(v => v.color_id === color.id && v.inventory_count > 0));
+
                   return (
                     <button
                       key={color.id}
@@ -565,7 +537,6 @@ export default function ProductDetailPage() {
             </div>
           )}
           
-          {/* Quantity */}
           <div className="mb-6">
             <h2 className="text-sm font-semibold text-[#24225c] mb-2">Quantity</h2>
             <div className="flex items-center">
@@ -581,22 +552,22 @@ export default function ProductDetailPage() {
                 onChange={handleQuantityChange}
                 className="h-8 px-2 border-t border-b border-gray-300 text-center"
                 style={{ width: '50px' }}
+                disabled={inventory === 0}
               >
-                {Array.from({ length: inventory }, (_, i) => (
+                {inventory > 0 ? Array.from({ length: inventory }, (_, i) => (
                   <option key={i + 1} value={i + 1}>
                     {i + 1}
                   </option>
-                ))}
+                )) : <option value="0">0</option>}
               </select>
               <button
                 onClick={incrementQuantity}
                 className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-r"
-                disabled={quantity >= inventory}
+                disabled={quantity >= inventory || inventory === 0}
               >
                 +
               </button>
               
-              {/* Inventory Status */}
               {isSoldOut ? (
                 <span className="ml-3 text-red-500 text-sm font-medium">Sold Out</span>
               ) : isLowStock ? (
@@ -609,7 +580,6 @@ export default function ProductDetailPage() {
             </div>
           </div>
           
-          {/* Add to Cart Button */}
           <button
             onClick={handleAddToCart}
             disabled={addingToCart || isSoldOut}
@@ -627,7 +597,6 @@ export default function ProductDetailPage() {
             )}
           </button>
           
-          {/* Product Metadata */}
           <div className="mt-8 text-sm text-gray-500 space-y-1.5">
             <p>SKU: {product.id.slice(-8).toUpperCase()}</p>
             {product.categories && product.categories.length > 0 && (

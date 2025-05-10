@@ -18,16 +18,28 @@ interface Product {
   drop_scheduled_time: string | null;
   created_at: string;
   updated_at: string;
-  collection: string | null;
-  category: string | null;
+  collection: string | null; // Assuming these are simplified for now
+  category: string | null;  // If they are IDs, type them as string
 }
 
-interface CountdownValues {
-  days: number;
-  hours: number;
-  minutes: number;
-  seconds: number;
-}
+// This interface might not be strictly needed if calculateTimeRemaining's return isn't directly used for display
+// interface CountdownValues {
+//   days: number;
+//   hours: number;
+//   minutes: number;
+//   seconds: number;
+// }
+
+// Helper function to get error messages
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return 'An unknown error occurred.';
+};
+
 
 export default function DropsPage() {
   const [upcomingDrops, setUpcomingDrops] = useState<Product[]>([]);
@@ -42,31 +54,30 @@ export default function DropsPage() {
       setLoading(true);
       setError(null);
       try {
-        // Fetch products that have a future drop date
         const now = new Date().toISOString();
-        const { data, error } = await supabase
+        const { data, error: fetchError } = await supabase // Renamed error to fetchError
           .from('products')
-          .select('*')
+          .select('*') // Consider selecting only necessary fields for performance
           .eq('is_active', true)
-          .gt('drop_scheduled_time', now) // Only future drops
-          .order('drop_scheduled_time', { ascending: true }); // Sort by earliest first
+          .gt('drop_scheduled_time', now) 
+          .order('drop_scheduled_time', { ascending: true }); 
 
-        if (error) {
-          throw error;
+        if (fetchError) {
+          throw fetchError;
         }
-        setUpcomingDrops(data || []);
-      } catch (err: any) {
+        setUpcomingDrops((data as Product[]) || []); // Cast data to Product[]
+      } catch (err: unknown) {
+        const message = getErrorMessage(err);
         console.error("Error fetching upcoming drops:", err);
-        setError(`Failed to load upcoming drops: ${err.message}`);
+        setError(`Failed to load upcoming drops: ${message}`);
       } finally {
         setLoading(false);
       }
     };
 
     fetchUpcomingDrops();
-  }, []); // Run once on mount
+  }, []); 
 
-  // A static date formatter to be used only on the client side
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Date not scheduled';
     
@@ -82,36 +93,25 @@ export default function DropsPage() {
     }).format(date);
   };
 
-  // This is a pure calculation function with no React hooks
-  const calculateTimeRemaining = (dropDate: string): CountdownValues => {
-    const now = new Date();
-    const drop = new Date(dropDate);
-    const diff = Math.max(0, drop.getTime() - now.getTime());
+  // calculateTimeRemaining is still used by CountdownTimer component (passed as prop conceptually)
+  // but its return value is not directly destructured and used in *this* component's JSX anymore.
+  // If CountdownTimer doesn't need the raw days, hours, minutes, seconds object, this could be simplified.
+  // For now, assume CountdownTimer might still use this or a similar calculation.
+  // const calculateTimeRemaining = (dropDate: string): CountdownValues => {
+  //   const now = new Date();
+  //   const drop = new Date(dropDate);
+  //   const diff = Math.max(0, drop.getTime() - now.getTime());
     
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+  //   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  //   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  //   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  //   const seconds = Math.floor((diff % (1000 * 60)) / 1000);
     
-    return { days, hours, minutes, seconds };
-  };
+  //   return { days, hours, minutes, seconds };
+  // };
   
-  const getTimeRemainingText = (countdown: CountdownValues): string => {
-    const { days, hours, minutes } = countdown;
-    
-    let result = '';
-    if (days > 0) {
-      result = `${days} day${days !== 1 ? 's' : ''} ${hours} hr${hours !== 1 ? 's' : ''}`;
-    } else if (hours > 0) {
-      result = `${hours} hr${hours !== 1 ? 's' : ''} ${minutes} min${minutes !== 1 ? 's' : ''}`;
-    } else {
-      result = `${minutes} minute${minutes !== 1 ? 's' : ''}`;
-    }
-    
-    return result;
-  };
+  // getTimeRemainingText was unused and removed.
 
-  // Function to handle reminder/notification signup
   const handleNotificationSignup = (productId: string) => {
     if (!emailNotification.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNotification)) {
       alert('Please enter a valid email address');
@@ -120,14 +120,12 @@ export default function DropsPage() {
 
     setNotificationLoading(true);
     
-    // Simulate API call to save notification preference
     setTimeout(() => {
       console.log(`Notification set for product ${productId} with email: ${emailNotification}`);
       setShowNotificationSuccess(true);
-      setEmailNotification('');
+      setEmailNotification(''); // Clear after "submission"
       setNotificationLoading(false);
       
-      // Hide success message after 5 seconds
       setTimeout(() => {
         setShowNotificationSuccess(false);
       }, 5000);
@@ -180,17 +178,19 @@ export default function DropsPage() {
           <p className="text-xl md:text-2xl text-center max-w-2xl">
             Be the first to access our exclusive limited releases
           </p>
-            {/* Notification Signup */}
           <div className="mt-8 w-full max-w-md">
             <NotificationForm
               onSubmit={(email) => {
-                setEmailNotification(email);
-                handleNotificationSignup('all');
+                setEmailNotification(email); // Not needed if NotificationForm handles its own input
+                handleNotificationSignup('all'); // 'all' could be a general drop notification
               }}
               loading={notificationLoading}
               showSuccess={showNotificationSuccess}
               buttonText="Notify Me"
               placeholderText="Enter your email for drop notifications"
+              // Pass emailNotification and setEmailNotification if NotificationForm is a controlled component
+              // email={emailNotification}
+              // onEmailChange={setEmailNotification}
             />
           </div>
         </div>
@@ -205,7 +205,7 @@ export default function DropsPage() {
           </div>
           <h2 className="text-2xl font-bold text-[#24225c] mb-3">No upcoming drops scheduled</h2>
           <p className="text-gray-600 mb-8 max-w-md mx-auto">
-            We're working on exciting new releases. Check back soon or sign up for notifications above.
+            We&apos;re working on exciting new releases. Check back soon or sign up for notifications above.
           </p>
           <Link 
             href="/products" 
@@ -222,7 +222,6 @@ export default function DropsPage() {
               className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 border border-[#ced1ff]/30"
             >
               <div className="md:grid md:grid-cols-5 items-stretch">
-                {/* Product Image */}
                 <div className="md:col-span-2 relative h-60 sm:h-72 md:h-full bg-gray-50 overflow-hidden">
                   {product.image_urls && product.image_urls.length > 0 ? (
                     <Image
@@ -240,7 +239,6 @@ export default function DropsPage() {
                     </div>
                   )}
                   
-                  {/* Collection Badge */}
                   {product.collection && (
                     <div className="absolute top-3 left-3">
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-black/70 text-white backdrop-blur-sm">
@@ -250,7 +248,6 @@ export default function DropsPage() {
                   )}
                 </div>
                 
-                {/* Product Info */}
                 <div className="md:col-span-3 p-6 md:p-8 flex flex-col">
                   <div>
                     <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
@@ -275,14 +272,15 @@ export default function DropsPage() {
                     )}
                   </div>
                   
-                  {/* Countdown and Actions */}
                   <div className="mt-auto">
                     <ClientOnly>
-                      {() => {
+                      {() => { // The arrow function here is the child render prop for ClientOnly
                         if (!product.drop_scheduled_time) return null;
                         
-                        const countdown = calculateTimeRemaining(product.drop_scheduled_time);
-                        const { days, hours, minutes, seconds } = countdown;
+                        // The individual days, hours, minutes, seconds are not directly used here.
+                        // CountdownTimer component handles the display.
+                        // So, we don't need to destructure them if CountdownTimer doesn't need them as props.
+                        // calculateTimeRemaining(product.drop_scheduled_time); 
                         
                         return (
                           <div className="mb-6">
@@ -291,7 +289,7 @@ export default function DropsPage() {
                             </div>
                               <CountdownTimer 
                               dropDate={product.drop_scheduled_time}
-                              onComplete={() => window.location.reload()}
+                              onComplete={() => window.location.reload()} // Consider a less disruptive update
                             />
                           </div>
                         );
@@ -302,10 +300,12 @@ export default function DropsPage() {
                       <button 
                         className="px-5 py-2.5 bg-[#b597ff] hover:bg-[#a076ff] text-white font-medium rounded-md transition-colors flex items-center"
                         onClick={() => {
-                          const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement;
-                          if (emailInput) {
-                            emailInput.focus();
-                            emailInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          // This assumes NotificationForm in the hero section is the one to focus
+                          // For product-specific notifications, you'd need a form per product or pass product.id
+                          const heroEmailInput = document.querySelector('.container > div:nth-of-type(1) input[type="email"]') as HTMLInputElement;
+                          if (heroEmailInput) {
+                            heroEmailInput.focus();
+                            heroEmailInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
                           }
                         }}
                       >
@@ -330,7 +330,6 @@ export default function DropsPage() {
         </div>
       )}
       
-      {/* Newsletter Section */}
       <div className="mt-20 p-8 sm:p-12 rounded-xl bg-gradient-to-br from-[#24225c] to-[#404099] text-white">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-4">Never Miss a Drop</h2>
@@ -340,17 +339,21 @@ export default function DropsPage() {
             <div className="max-w-md mx-auto">
             <NotificationForm
               onSubmit={(email) => {
-                setEmailNotification(email);
-                handleNotificationSignup('newsletter');
+                setEmailNotification(email); // Let NotificationForm handle its own state
+                handleNotificationSignup('newsletter'); // 'newsletter' could be a general subscription
               }}
               loading={notificationLoading}
               showSuccess={showNotificationSuccess}
               buttonText="Subscribe"
               placeholderText="Your email address"
               className="flex gap-2"
+              // Pass emailNotification and setEmailNotification if NotificationForm is controlled by this page
+              // email={emailNotification}
+              // onEmailChange={setEmailNotification}
             />
           </div>
         </div>
-      </div>    </div>
+      </div>    
+    </div>
   );
 }

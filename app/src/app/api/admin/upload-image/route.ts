@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { createServiceRoleClient, createServerClientWithToken } from '@/utils/supabaseServer';
+import { createServerClientWithToken } from '@/utils/supabaseServer'; // Removed createServiceRoleClient
 import { randomUUID } from 'crypto';
 import { Buffer } from 'buffer';
 
@@ -15,7 +15,24 @@ const R2_ACCOUNT_ID = process.env.CLOUDFLARE_R2_ACCOUNT_ID!;
 
 if (!R2_ENDPOINT || !R2_BUCKET_NAME || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_PUBLIC_URL || !R2_ACCOUNT_ID) {
     console.error("Missing Cloudflare R2 environment variables");
+    // Consider throwing an error or handling this more gracefully if critical for startup
 }
+
+interface PresignedUrlRequest {
+    filename: string;
+    contentType: string;
+}
+
+// Helper function to get error messages
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return 'An unexpected error occurred.';
+};
+
 
 export async function POST(req: NextRequest) {
     try {
@@ -73,7 +90,7 @@ export async function POST(req: NextRequest) {
         if (requestContentType.includes('application/json')) {
             // Handle JSON submission (pre-signed URL approach)
             try {
-                const json = await req.json();
+                const json = await req.json() as PresignedUrlRequest;
                 
                 if (!json.filename || !json.contentType) {
                     return new NextResponse(JSON.stringify({ error: 'Filename and contentType are required.' }), 
@@ -109,9 +126,10 @@ export async function POST(req: NextRequest) {
                     uploadUrl: signedUrl,
                     fileName: uniqueFilename,
                 });
-            } catch (error) {
+            } catch (error: unknown) {
+                const message = getErrorMessage(error);
                 console.error('Error processing JSON request:', error);
-                return new NextResponse(JSON.stringify({ error: 'Invalid JSON format' }), 
+                return new NextResponse(JSON.stringify({ error: message || 'Invalid JSON format' }), 
                     { status: 400, headers: { 'Content-Type': 'application/json' } });
             }
         } else {
@@ -121,7 +139,7 @@ export async function POST(req: NextRequest) {
                 console.log('Attempting to parse form data...');
                 const formData = await req.formData();
                   // Get file from form data
-                const file = formData.get('file');
+                const file = formData.get('file') as File | null; // Cast to File or null
                 console.log('File from formData:', file ? 'Found' : 'Not found');
                 
                 // Debug the file object in detail
@@ -129,24 +147,20 @@ export async function POST(req: NextRequest) {
                     console.log('File details:', {
                         type: typeof file,
                         constructor: file.constructor?.name || 'unknown',
-                        hasSize: 'size' in file,
                         size: file.size,
-                        hasType: 'type' in file,
                         fileType: file.type,
-                        hasName: 'name' in file,
-                        fileName: 'name' in file ? file.name : 'N/A',
-                        hasArrayBuffer: 'arrayBuffer' in file && typeof file.arrayBuffer === 'function'
+                        fileName: file.name,
                     });
                 }
                 
-                // Check if file exists and has required properties
-                if (!file || typeof file !== 'object' || !('arrayBuffer' in file) || typeof file.arrayBuffer !== 'function') {
-                    return new NextResponse(JSON.stringify({ error: 'No valid file provided in form data or file object is missing required methods' }), 
+                // Check if file exists and is a File object
+                if (!file || !(file instanceof File)) {
+                    return new NextResponse(JSON.stringify({ error: 'No valid file provided in form data.' }), 
                         { status: 400, headers: { 'Content-Type': 'application/json' } });
                 }
                 
                 // Get filename from form data or use file.name
-                const filename = (formData.get('filename') as string) || (file instanceof File ? file.name : 'uploaded-file');
+                const filename = (formData.get('filename') as string) || file.name;
                 const contentType = file.type || 'application/octet-stream';
                 
                 console.log('Processing file upload:', filename, 'Type:', contentType, 'Size:', file.size);
@@ -190,22 +204,25 @@ export async function POST(req: NextRequest) {
                         publicUrl,
                         fileName: uniqueFilename,
                     });
-                } catch (uploadError) {
+                } catch (uploadError: unknown) {
+                    const message = getErrorMessage(uploadError);
                     console.error('Error uploading to R2:', uploadError);
                     return new NextResponse(JSON.stringify({ 
-                        error: 'Failed to upload file to storage. Please try again.' 
+                        error: `Failed to upload file to storage. ${message}` 
                     }), { status: 500, headers: { 'Content-Type': 'application/json' } });
                 }
-            } catch (formError) {
+            } catch (formError: unknown) {
+                const message = getErrorMessage(formError);
                 console.error('Error parsing formData:', formError);
                 return new NextResponse(JSON.stringify({ 
-                    error: 'Failed to parse form data. Make sure you\'re sending a multipart/form-data request with a file field.' 
+                    error: `Failed to parse form data. Make sure you're sending a multipart/form-data request with a file field. ${message}` 
                 }), { status: 400, headers: { 'Content-Type': 'application/json' } });
             }
         }
-    } catch (error) {
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
         console.error('Unexpected error in upload-image API route:', error);
-        return new NextResponse(JSON.stringify({ error: 'An unexpected server error occurred' }), 
+        return new NextResponse(JSON.stringify({ error: message || 'An unexpected server error occurred' }), 
             { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 }

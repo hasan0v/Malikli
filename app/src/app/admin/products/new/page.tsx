@@ -4,7 +4,7 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-// import Image from 'next/image'; // Removed: Not used in this component
+import NextImage from 'next/image'; // Renamed to avoid potential naming conflicts, standard practice.
 import { supabase } from '@/utils/supabaseClient';
 
 // Define the structure for form data
@@ -49,13 +49,13 @@ interface ProductColor {
 // Define new attribute form interfaces
 interface NewCategoryFormData {
     name: string;
-    description: string;
+    description: string | null; // Made description explicitly nullable to match usage
     parent_id: string | null;
 }
 
 interface NewCollectionFormData {
     name: string;
-    description: string;
+    description: string | null; // Made description explicitly nullable
 }
 
 interface NewSizeFormData {
@@ -68,6 +68,20 @@ interface NewColorFormData {
     display_name: string;
     hex_code: string;
 }
+
+// Union type for the different attribute form data structures
+type AttributeModalFormData = NewCategoryFormData | NewCollectionFormData | NewSizeFormData | NewColorFormData;
+
+// Helper function to get error messages
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return 'An unexpected error occurred.';
+};
+
 
 const NewProductPage: React.FC = () => {
     const { user, profile, loading: authLoading, session } = useAuth();
@@ -108,8 +122,8 @@ const NewProductPage: React.FC = () => {
     const [isSizeModalOpen, setIsSizeModalOpen] = useState(false);
     const [isColorModalOpen, setIsColorModalOpen] = useState(false);
 
-    const [newCategoryForm, setNewCategoryForm] = useState<NewCategoryFormData>({ name: '', description: '', parent_id: null });
-    const [newCollectionForm, setNewCollectionForm] = useState<NewCollectionFormData>({ name: '', description: '' });
+    const [newCategoryForm, setNewCategoryForm] = useState<NewCategoryFormData>({ name: '', description: null, parent_id: null });
+    const [newCollectionForm, setNewCollectionForm] = useState<NewCollectionFormData>({ name: '', description: null });
     const [newSizeForm, setNewSizeForm] = useState<NewSizeFormData>({ name: '', display_name: '' });
     const [newColorForm, setNewColorForm] = useState<NewColorFormData>({ name: '', display_name: '', hex_code: '#000000' });
 
@@ -137,9 +151,10 @@ const NewProductPage: React.FC = () => {
             console.log('Fetched categories:', data); // Debugging log
             if (fetchError) throw fetchError;
             setCategories(data || []);
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
             console.error('Error fetching categories:', err);
-            setError(prev => (prev ? prev + "\n" : "") + 'Failed to refresh categories: ' + err.message);
+            setError(prev => (prev ? prev + "\n" : "") + 'Failed to refresh categories: ' + message);
         }
     }, []);
 
@@ -152,9 +167,10 @@ const NewProductPage: React.FC = () => {
                 .order('name');
             if (fetchError) throw fetchError;
             setCollections(data || []);
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
             console.error('Error fetching collections:', err);
-            setError(prev => (prev ? prev + "\n" : "") + 'Failed to refresh collections: ' + err.message);
+            setError(prev => (prev ? prev + "\n" : "") + 'Failed to refresh collections: ' + message);
         }
     }, []);
 
@@ -166,9 +182,10 @@ const NewProductPage: React.FC = () => {
                 .order('sort_order');
             if (fetchError) throw fetchError;
             setAvailableSizes(data || []);
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
             console.error('Error fetching sizes:', err);
-            setError(prev => (prev ? prev + "\n" : "") + 'Failed to refresh sizes: ' + err.message);
+            setError(prev => (prev ? prev + "\n" : "") + 'Failed to refresh sizes: ' + message);
         }
     }, []);
 
@@ -180,9 +197,10 @@ const NewProductPage: React.FC = () => {
                 .order('sort_order');
             if (fetchError) throw fetchError;
             setAvailableColors(data || []);
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
             console.error('Error fetching colors:', err);
-            setError(prev => (prev ? prev + "\n" : "") + 'Failed to refresh colors: ' + err.message);
+            setError(prev => (prev ? prev + "\n" : "") + 'Failed to refresh colors: ' + message);
         }
     }, []);
     
@@ -198,10 +216,11 @@ const NewProductPage: React.FC = () => {
                         fetchProductSizes(),
                         fetchProductColors(),
                     ]);
-                } catch (err: any) {
+                } catch (err: unknown) {
                     // Errors are handled within individual fetch functions, but a general one can be set too
+                    const message = getErrorMessage(err);
                     console.error('Error fetching initial options:', err);
-                    setError('Failed to load one or more form options. Please check console.');
+                    setError('Failed to load one or more form options: ' + message + '. Please check console.');
                 } finally {
                     setLoadingOptions(false);
                 }
@@ -337,14 +356,14 @@ const NewProductPage: React.FC = () => {
                     const responseText = await uploadApiResponse.text();
                     let errorMessage;
                     try {
-                        const errorData = JSON.parse(responseText);
+                        const errorData = JSON.parse(responseText) as { error?: string };
                         errorMessage = errorData.error || 'Unknown error during image upload';
-                    } catch (parseErr) {
+                    } catch /* istanbul ignore next */ { // Removed unused parseErr
                         errorMessage = responseText || uploadApiResponse.statusText;
                     }
                     throw new Error(`Failed to upload image (${uploadApiResponse.status}): ${errorMessage}`);
                 }
-                const { publicUrl } = await uploadApiResponse.json();
+                const { publicUrl } = await uploadApiResponse.json() as { publicUrl: string };
                 imageUrls.push(publicUrl);
             }
 
@@ -398,11 +417,11 @@ const NewProductPage: React.FC = () => {
             });
 
             if (!createProductResponse.ok) {
-                const errorData = await createProductResponse.json().catch(() => ({}));
+                const errorData = await createProductResponse.json().catch(() => ({})) as { error?: string };
                 throw new Error(`Failed to create product: ${errorData.error || createProductResponse.statusText}`);
             }
 
-            const newProduct = await createProductResponse.json();
+            const newProduct = await createProductResponse.json() as {name: string}; // Assuming newProduct has a name property
             setSuccessMessage(`Product "${newProduct.name}" created successfully!`);
 
             setFormData({
@@ -415,23 +434,24 @@ const NewProductPage: React.FC = () => {
             setVariants([]);
             setHasVariants(false);
 
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
             console.error("Submission Error:", err);
-            setError(err.message || 'An unexpected error occurred during product submission.');
+            setError(message || 'An unexpected error occurred during product submission.');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleAddAttribute = async (
+    const handleAddAttribute = async <T extends AttributeModalFormData>(
         e: FormEvent<HTMLFormElement>,
         apiPath: string,
-        formState: any,
-        setFormState: React.Dispatch<React.SetStateAction<any>>,
+        payload: T, // Renamed from formState for clarity
+        stateSetter: React.Dispatch<React.SetStateAction<T>>, // Renamed from setFormState
         setIsSubmittingAttribute: React.Dispatch<React.SetStateAction<boolean>>,
         fetchAttributeList: () => Promise<void>,
         attributeName: 'categories' | 'collections' | 'sizes' | 'colors',
-        resetFormValues: any,
+        initialStateValues: T, // Renamed from resetFormValues
         successMsgPrefix: string
     ) => {
         e.preventDefault();
@@ -450,15 +470,15 @@ const NewProductPage: React.FC = () => {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session.access_token}`
                 },
-                body: JSON.stringify(formState)
+                body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
+                const errorData = await response.json().catch(() => ({})) as { error?: string };
                 throw new Error(errorData.error || `Failed to create ${attributeName.slice(0, -1)}`);
             }
 
-            const newItem = await response.json();
+            const newItem = await response.json() as { id: string; name?: string; display_name?: string }; // Basic type for newItem
             await fetchAttributeList(); // Refresh the list
 
             setFormData(prev => ({
@@ -475,7 +495,7 @@ const NewProductPage: React.FC = () => {
                 }
             }
             
-            setFormState(resetFormValues);
+            stateSetter(initialStateValues);
             if (attributeName === 'categories') setIsCategoryModalOpen(false);
             if (attributeName === 'collections') setIsCollectionModalOpen(false);
             if (attributeName === 'sizes') setIsSizeModalOpen(false);
@@ -483,9 +503,10 @@ const NewProductPage: React.FC = () => {
             
             setSuccessMessage(`${successMsgPrefix} "${newItem.name || newItem.display_name}" created successfully!`);
 
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
             console.error(`${attributeName} Creation Error:`, err);
-            setError(err.message || `Failed to create ${attributeName.slice(0, -1)}.`);
+            setError(message || `Failed to create ${attributeName.slice(0, -1)}.`);
         } finally {
             setIsSubmittingAttribute(false);
         }
@@ -495,14 +516,14 @@ const NewProductPage: React.FC = () => {
         e, '/api/admin/categories', 
         { name: newCategoryForm.name, description: newCategoryForm.description || null, parent_id: newCategoryForm.parent_id || null },
         setNewCategoryForm, setIsSubmittingCategory, fetchCategories, 'categories',
-        { name: '', description: '', parent_id: null }, "Category"
+        { name: '', description: null, parent_id: null }, "Category"
     );
 
     const handleAddCollection = (e: FormEvent<HTMLFormElement>) => handleAddAttribute(
         e, '/api/admin/collections',
         { name: newCollectionForm.name, description: newCollectionForm.description || null },
         setNewCollectionForm, setIsSubmittingCollection, fetchCollections, 'collections',
-        { name: '', description: '' }, "Collection"
+        { name: '', description: null }, "Collection"
     );
 
     const handleAddSize = (e: FormEvent<HTMLFormElement>) => handleAddAttribute(
@@ -842,7 +863,13 @@ const NewProductPage: React.FC = () => {
                             <div className="flex flex-wrap gap-4">
                                 {previewUrls.map((url, index) => (
                                     <div key={url + index} className="relative"> {/* Use URL + index for a more unique key if files can be same name */}
-                                        <img src={url} alt={`Preview ${index + 1}`} className="h-24 w-24 object-cover rounded border" />
+                                        <NextImage 
+                                            src={url} 
+                                            alt={`Preview ${index + 1}`} 
+                                            width={96} 
+                                            height={96} 
+                                            className="object-cover rounded border" 
+                                        />
                                         <button
                                             type="button"
                                             onClick={() => !isSubmitting && removeFile(index)}
@@ -973,7 +1000,7 @@ const NewProductPage: React.FC = () => {
                             </div>
                             <div>
                                 <label htmlFor="newCategoryDescription" className="block text-sm font-medium">Description</label>
-                                <textarea id="newCategoryDescription" value={newCategoryForm.description} onChange={(e) => setNewCategoryForm({...newCategoryForm, description: e.target.value})} rows={3} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" disabled={isSubmittingCategory} />
+                                <textarea id="newCategoryDescription" value={newCategoryForm.description || ''} onChange={(e) => setNewCategoryForm({...newCategoryForm, description: e.target.value})} rows={3} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" disabled={isSubmittingCategory} />
                             </div>
                             <div>
                                 <label htmlFor="newParentCategory" className="block text-sm font-medium">Parent Category</label>
@@ -1010,7 +1037,7 @@ const NewProductPage: React.FC = () => {
                             </div>
                             <div>
                                 <label htmlFor="newCollectionDescription" className="block text-sm font-medium">Description</label>
-                                <textarea id="newCollectionDescription" value={newCollectionForm.description} onChange={(e) => setNewCollectionForm({...newCollectionForm, description: e.target.value})} rows={3} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" disabled={isSubmittingCollection} />
+                                <textarea id="newCollectionDescription" value={newCollectionForm.description || ''} onChange={(e) => setNewCollectionForm({...newCollectionForm, description: e.target.value})} rows={3} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" disabled={isSubmittingCollection} />
                             </div>
                             <div className="flex justify-end space-x-3 pt-4">
                                 <button type="button" onClick={() => setIsCollectionModalOpen(false)} className="px-4 py-2 border rounded-md text-sm" disabled={isSubmittingCollection}>Cancel</button>
@@ -1037,7 +1064,7 @@ const NewProductPage: React.FC = () => {
                             <div>
                                 <label htmlFor="newSizeName" className="block text-sm font-medium">Size Code <span className="text-red-500">*</span></label>
                                 <input type="text" id="newSizeName" value={newSizeForm.name} onChange={(e) => setNewSizeForm({...newSizeForm, name: e.target.value})} required placeholder="e.g. S, M, XL, 32" className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" disabled={isSubmittingSize} />
-                                <p className="mt-1 text-xs text-gray-500">Internal code (e.g., "S", "XL").</p>
+                                <p className="mt-1 text-xs text-gray-500">Internal code (e.g., &quot;S&quot;, &quot;XL&quot;).</p>
                             </div>
                             <div>
                                 <label htmlFor="newSizeDisplayName" className="block text-sm font-medium">Display Name <span className="text-red-500">*</span></label>
@@ -1069,7 +1096,7 @@ const NewProductPage: React.FC = () => {
                             <div>
                                 <label htmlFor="newColorName" className="block text-sm font-medium">Color Code <span className="text-red-500">*</span></label>
                                 <input type="text" id="newColorName" value={newColorForm.name} onChange={(e) => setNewColorForm({...newColorForm, name: e.target.value})} required placeholder="e.g. red, navy_blue" className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" disabled={isSubmittingColor} />
-                                 <p className="mt-1 text-xs text-gray-500">Internal code (e.g., "navy_blue").</p>
+                                 <p className="mt-1 text-xs text-gray-500">Internal code (e.g., &quot;navy_blue&quot;).</p>
                             </div>
                             <div>
                                 <label htmlFor="newColorDisplayName" className="block text-sm font-medium">Display Name <span className="text-red-500">*</span></label>

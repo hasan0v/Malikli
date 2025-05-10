@@ -4,28 +4,20 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useCart } from '@/context/CartContext';
+import { useCart } from '@/context/CartContext'; // CartItem type is imported from here if needed
 
-// Define the types (assuming they are the same as before)
-interface Product {
-  name?: string;
-  price?: number;
-  image_urls?: string[] | null;
-}
-
-interface CartItem {
-  id: string;
-  product_id: string;
-  quantity: number;
-  product?: Product;
-}
+// Removed unused Product interface definition, as CartItem from CartContext should have product details.
+// interface Product {
+//   name?: string;
+//   price?: number;
+//   image_urls?: string[] | null;
+// }
 
 export default function CartPageContent() {
   const router = useRouter();
   const cartContext = useCart();
 
-  // Handle cases where context might not be ready (though useCart should handle this)
-  if (!cartContext) {
+  if (!cartContext) { // This check is more for robustness; useCart should throw if no provider
     return (
       <div className="flex justify-center items-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#76bfd4]"></div>
@@ -91,7 +83,7 @@ export default function CartPageContent() {
           </div>
           <h3 className="text-xl font-medium text-[#24225c] mb-2">Your bag is empty</h3>
           <p className="text-gray-500 mb-6">
-            Looks like you haven't added any items to your cart yet.
+            Looks like you haven&apos;t added any items to your cart yet.
           </p>
           <Link
             href="/products"
@@ -102,15 +94,13 @@ export default function CartPageContent() {
         </div>
       ) : (
         <div className="grid md:grid-cols-3 gap-8">
-          {/* Cart Items List */}
           <div className="md:col-span-2">
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               {cartItems.map((item) => (
                 <div
-                  key={item.id}
+                  key={item.id} // Assuming CartItem has a unique 'id' from CartContext
                   className="flex flex-col sm:flex-row items-start sm:items-center p-4 border-b border-gray-200 last:border-b-0"
                 >
-                  {/* Product Image */}
                   <div className="relative h-24 w-24 flex-shrink-0 bg-gray-100 rounded overflow-hidden mr-4 mb-4 sm:mb-0">
                     {item.product?.image_urls && item.product.image_urls.length > 0 ? (
                       <Image
@@ -127,7 +117,6 @@ export default function CartPageContent() {
                     )}
                   </div>
                   
-                  {/* Product Details */}
                   <div className="flex-grow">
                     <h3 className="text-lg font-medium text-[#24225c] mb-1">
                       {item.product?.name || 'Unknown Product'}
@@ -135,11 +124,11 @@ export default function CartPageContent() {
                     <p className="text-gray-600 mb-2">${item.product?.price?.toFixed(2) || '0.00'}</p>
                     
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                      {/* Quantity Selector */}
                       <div className="flex items-center border border-gray-300 rounded-md w-28">
                         <button
                           onClick={() => handleQuantityChange(item.product_id, item.quantity - 1)}
                           className="px-2 py-1 text-gray-500 hover:text-[#76bfd4]"
+                          aria-label={`Decrease quantity of ${item.product?.name || 'item'}`}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
@@ -147,6 +136,7 @@ export default function CartPageContent() {
                         </button>
                         <input
                           type="number"
+                          aria-label={`Quantity for ${item.product?.name || 'item'}`}
                           value={item.quantity}
                           onChange={(e) => handleQuantityChange(item.product_id, parseInt(e.target.value) || 1)}
                           className="w-10 text-center border-none focus:ring-0"
@@ -155,6 +145,7 @@ export default function CartPageContent() {
                         <button
                           onClick={() => handleQuantityChange(item.product_id, item.quantity + 1)}
                           className="px-2 py-1 text-gray-500 hover:text-[#76bfd4]"
+                          aria-label={`Increase quantity of ${item.product?.name || 'item'}`}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -162,17 +153,15 @@ export default function CartPageContent() {
                         </button>
                       </div>
                       
-                      {/* Line Item Total */}
                       <div className="text-[#24225c] font-medium">
                         ${((item.product?.price || 0) * item.quantity).toFixed(2)}
                       </div>
                       
-                      {/* Remove Button */}
                       <div className="ml-auto">
                         <button
                           onClick={() => handleRemoveItem(item.product_id)}
                           className="text-gray-400 hover:text-red-500 transition-colors"
-                          aria-label="Remove item"
+                          aria-label={`Remove ${item.product?.name || 'item'} from cart`}
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -184,7 +173,6 @@ export default function CartPageContent() {
                 </div>
               ))}
               
-              {/* Clear Cart Button */}
               <div className="p-4 bg-gray-50 text-right">
                 <button
                   onClick={handleClearCart}
@@ -196,7 +184,6 @@ export default function CartPageContent() {
             </div>
           </div>
           
-          {/* Order Summary */}
           <div className="md:col-span-1">
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="text-lg font-semibold text-[#24225c] mb-4">Order Summary</h2>
