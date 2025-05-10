@@ -17,7 +17,8 @@
     "buffer": "^6.0.3",
     "next": "15.3.1",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "supabase-cli": "^0.0.21"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -27,7 +28,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
-    "supabase": "^2.22.6",
+    "supabase": "^2.22.12",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

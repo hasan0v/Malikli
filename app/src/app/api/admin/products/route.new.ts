@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
                 const categoryInserts = productData.categories.map(categoryId => ({
                     product_id: product.id,
                     category_id: categoryId,
-                    is_primary: productData.categories[0] === categoryId // First category is primary
+                    is_primary: productData.categories && productData.categories[0] === categoryId // First category is primary
                 }));
 
                 const { error: categoriesError } = await supabaseAdmin

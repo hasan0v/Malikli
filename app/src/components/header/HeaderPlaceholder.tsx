@@ -10,7 +10,7 @@ const HeaderPlaceholder: React.FC = () => {
         <div className="flex justify-between items-center">
           <div className="flex items-center">
             <Link href="/" className="text-xl font-bold text-indigo-600 hover:text-indigo-700">
-              malikli1992
+              MALIKLI1992
             </Link>
             <div className="ml-6 space-x-4 hidden md:flex">
               <div className="w-20 h-6 bg-gray-200 rounded animate-pulse"></div>

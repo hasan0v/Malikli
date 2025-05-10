@@ -9,9 +9,10 @@ interface DropdownLinkProps {
     href: string;
     label: string;
   }[];
+  className?: string;
 }
 
-const DropdownLink: React.FC<DropdownLinkProps> = ({ label, links }) => {
+const DropdownLink: React.FC<DropdownLinkProps> = ({ label, links, className }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
@@ -29,10 +30,9 @@ const DropdownLink: React.FC<DropdownLinkProps> = ({ label, links }) => {
   }, []);
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <button
+    <div className="relative" ref={dropdownRef}>      <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-1 text-gray-700 hover:text-indigo-600 focus:outline-none"
+        className={`flex items-center space-x-1 hover:text-indigo-600 focus:outline-none ${className || 'text-gray-700'}`}
         aria-expanded={isOpen}
       >
         <span>{label}</span>

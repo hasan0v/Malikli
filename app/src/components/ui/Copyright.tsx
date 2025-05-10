@@ -7,7 +7,7 @@ const Copyright: React.FC = () => {
   return (
     <footer className="bg-gray-100 text-center py-4 mt-auto">
       <p className="text-sm text-gray-600">
-        &copy; <span id="copyright-year">{new Date().getFullYear()}</span> Malikli1992. All rights reserved.
+        &copy; <span id="copyright-year">{new Date().getFullYear()}</span> MALIKLI1992. All rights reserved.
       </p>
       <script dangerouslySetInnerHTML={{ __html: setYearScript }} />
     </footer>

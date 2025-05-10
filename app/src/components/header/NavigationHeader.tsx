@@ -5,10 +5,12 @@ import Link from 'next/link';
 import AuthStatus from '../auth/AuthStatus';
 import { useAuth } from '@/context/AuthContext';
 import DropdownLink from './DropdownLink';
+import ClientCartIcon from '../cart/ClientCartIcon';
 
 const NavigationHeader: React.FC = () => {
   const { profile } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
   
   const isAdmin = profile?.role === 'ADMIN';
 
@@ -17,38 +19,38 @@ const NavigationHeader: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
-            <Link href="/" className="text-xl font-bold text-indigo-600 hover:text-indigo-700">
-              malikli1992
+            <Link href="/" className="text-xl font-bold text-[#24225c] hover:text-[#76bfd4] transition-colors duration-300">
+              MALIKLI1992
             </Link>
             <nav className="ml-6 space-x-4 hidden md:flex">
-              <Link href="/" className="text-gray-700 hover:text-indigo-600">
-                Products
+              <Link href="/about" className="text-[#24225c] hover:text-[#76bfd4] transition-colors duration-300">
+                About Us
               </Link>
-              <Link href="/drops" className="text-gray-700 hover:text-indigo-600">
-                Upcoming Drops
+              <Link href="/delivery" className="text-[#24225c] hover:text-[#76bfd4] transition-colors duration-300">
+                Delivery Information
               </Link>
               {isAdmin && (
                 <DropdownLink 
                   label="Admin" 
                   links={[
-                    { href: '/admin/products', label: 'Products' },
-                    { href: '/admin/products/new', label: 'Add New Product' },
-                    { href: '/admin/create-admin', label: 'Create Admin' },
-                    { href: '/admin/orders', label: 'Orders' }
+                    { href: '/admin/create-admin', label: 'Add New Admin' },
+                    { href: '/admin/products/new', label: 'Add Product' },
+                    { href: '/admin/products', label: 'Manage Products' },
+                    { href: '/admin/orders', label: 'Manage Orders' }
                   ]} 
+                  className="text-[#b597ff]"
                 />
               )}
-              <Link href="/about" className="text-gray-700 hover:text-indigo-600">
-                About
-              </Link>
             </nav>
           </div>
           
-          {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          {/* Mobile menu button and cart icon */}
+          <div className="md:hidden flex items-center space-x-3">
+            {/* Using ClientCartIcon to prevent hydration issues */}
+            <ClientCartIcon />
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+              className="inline-flex items-center justify-center p-2 rounded-md text-[#24225c] hover:text-[#76bfd4] hover:bg-[#ced1ff] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#76bfd4] transition-colors duration-300"
             >
               <span className="sr-only">Open main menu</span>
               {isMobileMenuOpen ? (
@@ -62,70 +64,111 @@ const NavigationHeader: React.FC = () => {
               )}
             </button>
           </div>
-            <div className="hidden md:flex items-center">
-              <AuthStatus />
+          
+          {/* Desktop icons */}
+          <div className="hidden md:flex items-center space-x-4">
+            {/* Language Selector */}
+            <div className="relative">
+              <button 
+                onClick={() => setLanguageOpen(!languageOpen)}
+                className="flex items-center text-[#24225c] hover:text-[#76bfd4] transition-colors duration-300"
+              >
+                <span>EN</span>
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </button>
+              
+              {languageOpen && (
+                <div className="absolute right-0 mt-2 py-2 w-24 bg-white rounded-md shadow-xl z-20">
+                  <button className="block px-4 py-2 text-sm text-[#24225c] hover:bg-[#ced1ff] w-full text-left">
+                    English
+                  </button>
+                  <button className="block px-4 py-2 text-sm text-[#24225c] hover:bg-[#ced1ff] w-full text-left">
+                    Español
+                  </button>
+                  <button className="block px-4 py-2 text-sm text-[#24225c] hover:bg-[#ced1ff] w-full text-left">
+                    Français
+                  </button>
+                </div>
+              )}
             </div>
+            
+            {/* Using ClientCartIcon to prevent hydration issues */}
+            <ClientCartIcon />
+            
+            {/* Auth Status */}
+            <AuthStatus />
+          </div>
         </div>
-        
+
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className="md:hidden mt-4 pt-2 pb-4 border-t border-gray-200">
             <Link 
-              href="/" 
-              className="block py-2 text-base font-medium text-gray-500 hover:bg-gray-50 hover:text-indigo-600"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Products
-            </Link>
-            <Link 
-              href="/drops" 
-              className="block py-2 text-base font-medium text-gray-500 hover:bg-gray-50 hover:text-indigo-600"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Upcoming Drops
-            </Link>
-            <Link 
               href="/about" 
-              className="block py-2 text-base font-medium text-gray-500 hover:bg-gray-50 hover:text-indigo-600"
+              className="block py-2 text-base font-medium text-[#24225c] hover:bg-[#ced1ff] hover:text-[#76bfd4] transition-colors duration-300 px-2 rounded"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              About
+              About Us
             </Link>
+            <Link 
+              href="/delivery" 
+              className="block py-2 text-base font-medium text-[#24225c] hover:bg-[#ced1ff] hover:text-[#76bfd4] transition-colors duration-300 px-2 rounded"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Delivery Information
+            </Link>
+            
+            {/* Language options */}
+            <div className="py-2">
+              <p className="px-2 text-sm font-semibold text-gray-500">Language</p>
+              <button className="block w-full text-left px-2 py-2 text-base font-medium text-[#24225c] hover:bg-[#ced1ff]">
+                English
+              </button>
+              <button className="block w-full text-left px-2 py-2 text-base font-medium text-[#24225c] hover:bg-[#ced1ff]">
+                Español
+              </button>
+              <button className="block w-full text-left px-2 py-2 text-base font-medium text-[#24225c] hover:bg-[#ced1ff]">
+                Français
+              </button>
+            </div>
+            
             {isAdmin && (
               <>
-                <Link 
-                  href="/admin/products" 
-                  className="block py-2 text-base font-medium text-red-600 hover:bg-gray-50"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Admin: Products
-                </Link>
-                <Link 
-                  href="/admin/products/new" 
-                  className="block py-2 text-base font-medium text-red-600 hover:bg-gray-50"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Admin: Add Product
-                </Link>
-                <Link 
-                  href="/admin/create-admin" 
-                  className="block py-2 text-base font-medium text-red-600 hover:bg-gray-50"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Admin: Create Admin
-                </Link>
-                <Link 
-                  href="/admin/orders" 
-                  className="block py-2 text-base font-medium text-red-600 hover:bg-gray-50"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Admin: Orders
-                </Link>
+                <div className="py-2">
+                  <p className="px-2 text-sm font-semibold text-[#b597ff]">Admin</p>
+                  <Link 
+                    href="/admin/create-admin" 
+                    className="block py-2 text-base font-medium text-[#24225c] hover:bg-[#ced1ff] px-2 rounded"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Add New Admin
+                  </Link>
+                  <Link 
+                    href="/admin/products/new" 
+                    className="block py-2 text-base font-medium text-[#24225c] hover:bg-[#ced1ff] px-2 rounded"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Add Product
+                  </Link>
+                  <Link 
+                    href="/admin/products" 
+                    className="block py-2 text-base font-medium text-[#24225c] hover:bg-[#ced1ff] px-2 rounded"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Manage Products
+                  </Link>
+                  <Link 
+                    href="/admin/orders" 
+                    className="block py-2 text-base font-medium text-[#24225c] hover:bg-[#ced1ff] px-2 rounded"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Manage Orders
+                  </Link>
+                </div>
               </>
             )}
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <AuthStatus />
-            </div>
           </div>
         )}
       </div>

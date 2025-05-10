@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  font-family: 'Nexa Regular', sans-serif!important;
 }
 
 @theme inline {
@@ -22,5 +23,17 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  
+}
+
+@font-face {
+  font-family: 'Nexa Regular';
+  src: url('/fonts/nexa-regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.bg-opacity-50{
+  background-color: rgba(0, 0, 0, 0.5);
 }

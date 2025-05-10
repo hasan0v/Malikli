@@ -21,12 +21,26 @@ interface Order {
   items: OrderItem[];
 }
 
-export default function OrdersPage() {
-  const { user, loading } = useAuth();
+export default function OrdersPage() {  const { user, loading } = useAuth();
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  
+  // Check if the page was loaded with a success parameter
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('success') === 'true') {
+        setShowSuccessMessage(true);
+        // Remove the success parameter from the URL after a short delay
+        setTimeout(() => {
+          router.replace('/orders');
+        }, 5000);
+      }
+    }
+  }, [router]);
 
   useEffect(() => {
     // If auth is still loading, wait

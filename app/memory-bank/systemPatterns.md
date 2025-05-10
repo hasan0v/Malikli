@@ -1,7 +1,7 @@
 ```markdown
 ## System Patterns (systemPatterns.md)
 
-This document outlines the architectural design, data models, API definitions, component structure, integration points, and scalability strategy for the malikli1992 e-commerce web application.
+This document outlines the architectural design, data models, API definitions, component structure, integration points, and scalability strategy for the MALIKLI1992 e-commerce web application.
 
 ### 1. Architectural Design: JAMstack with Serverless Functions
 

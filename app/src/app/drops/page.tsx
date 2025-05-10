@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/utils/supabaseClient';
 import ClientOnly from '@/components/ui/ClientOnly';
+import { CountdownTimer, NotificationForm } from './DropsContent';
 
 interface Product {
   id: string;
@@ -17,12 +18,24 @@ interface Product {
   drop_scheduled_time: string | null;
   created_at: string;
   updated_at: string;
+  collection: string | null;
+  category: string | null;
+}
+
+interface CountdownValues {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
 }
 
 export default function DropsPage() {
   const [upcomingDrops, setUpcomingDrops] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [emailNotification, setEmailNotification] = useState('');
+  const [showNotificationSuccess, setShowNotificationSuccess] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(false);
 
   useEffect(() => {
     const fetchUpcomingDrops = async () => {
@@ -52,6 +65,7 @@ export default function DropsPage() {
 
     fetchUpcomingDrops();
   }, []); // Run once on mount
+
   // A static date formatter to be used only on the client side
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Date not scheduled';
@@ -66,15 +80,24 @@ export default function DropsPage() {
       minute: '2-digit',
       hour12: true
     }).format(date);
-  };// This is a pure calculation function with no React hooks
-  const calculateTimeRemaining = (dropDate: string) => {
+  };
+
+  // This is a pure calculation function with no React hooks
+  const calculateTimeRemaining = (dropDate: string): CountdownValues => {
     const now = new Date();
     const drop = new Date(dropDate);
-    const diff = drop.getTime() - now.getTime();
+    const diff = Math.max(0, drop.getTime() - now.getTime());
     
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    
+    return { days, hours, minutes, seconds };
+  };
+  
+  const getTimeRemainingText = (countdown: CountdownValues): string => {
+    const { days, hours, minutes } = countdown;
     
     let result = '';
     if (days > 0) {
@@ -87,131 +110,247 @@ export default function DropsPage() {
     
     return result;
   };
-  
-  // Custom hook for time remaining with auto-refresh
-  const useTimeRemaining = (dropDate: string | null) => {
-    const [timeRemaining, setTimeRemaining] = useState<string>('');
+
+  // Function to handle reminder/notification signup
+  const handleNotificationSignup = (productId: string) => {
+    if (!emailNotification.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNotification)) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
+    setNotificationLoading(true);
     
-    useEffect(() => {
-      if (!dropDate) return;
+    // Simulate API call to save notification preference
+    setTimeout(() => {
+      console.log(`Notification set for product ${productId} with email: ${emailNotification}`);
+      setShowNotificationSuccess(true);
+      setEmailNotification('');
+      setNotificationLoading(false);
       
-      const updateTime = () => {
-        setTimeRemaining(calculateTimeRemaining(dropDate));
-      };
-      
-      // Initial calculation
-      updateTime();
-      
-      // Update time every minute
-      const timer = setInterval(updateTime, 60000);
-      return () => clearInterval(timer);
-    }, [dropDate]);
-    
-    return timeRemaining;
+      // Hide success message after 5 seconds
+      setTimeout(() => {
+        setShowNotificationSuccess(false);
+      }, 5000);
+    }, 1500);
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center py-10">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      <div className="container mx-auto px-4 py-12">
+        <div className="flex justify-center items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#76bfd4]"></div>
+        </div>
       </div>
     );
   }
 
   if (error) {
-    return <div className="text-center py-10 text-red-600">{error}</div>;
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <div className="text-center">
+          <p className="text-red-500 text-xl mb-4">Error loading drops: {error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-[#76bfd4] hover:bg-[#5eabc6] text-white font-semibold py-2 px-6 rounded-md transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div>
-      <div className="text-center mb-12">
-        <h1 className="text-3xl font-bold mb-2">Upcoming Drops</h1>
-        <p className="text-gray-600">Be ready for our exclusive product releases</p>
+    <div className="container mx-auto px-4 py-12">
+      {/* Hero Section */}
+      <div className="relative mb-16 rounded-xl overflow-hidden">
+        <div className="bg-gradient-to-r from-[#24225c] to-[#b597ff] h-64 md:h-80">
+          {/* Visual elements */}
+          <div className="absolute top-0 right-0 w-1/3 h-full opacity-20">
+            <div className="absolute top-10 right-10 w-40 h-40 rounded-full bg-[#a0fff8]"></div>
+            <div className="absolute bottom-20 right-20 w-24 h-24 rounded-full bg-[#76bfd4]"></div>
+          </div>
+          <div className="absolute bottom-0 left-0 w-1/4 h-1/2 opacity-20">
+            <div className="absolute bottom-10 left-10 w-32 h-32 rounded-full bg-[#ced1ff]"></div>
+          </div>
+        </div>
+        
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-center">Upcoming Drops</h1>
+          <p className="text-xl md:text-2xl text-center max-w-2xl">
+            Be the first to access our exclusive limited releases
+          </p>
+            {/* Notification Signup */}
+          <div className="mt-8 w-full max-w-md">
+            <NotificationForm
+              onSubmit={(email) => {
+                setEmailNotification(email);
+                handleNotificationSignup('all');
+              }}
+              loading={notificationLoading}
+              showSuccess={showNotificationSuccess}
+              buttonText="Notify Me"
+              placeholderText="Enter your email for drop notifications"
+            />
+          </div>
+        </div>
       </div>
 
       {upcomingDrops.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <h2 className="text-xl font-semibold mb-2">No upcoming drops scheduled</h2>
-          <p className="text-gray-500 mb-6">Check back soon for new product announcements</p>
+        <div className="text-center py-16 bg-gradient-to-b from-[#ced1ff]/20 to-white rounded-xl">
+          <div className="mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-24 w-24 text-[#76bfd4]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-[#24225c] mb-3">No upcoming drops scheduled</h2>
+          <p className="text-gray-600 mb-8 max-w-md mx-auto">
+            We're working on exciting new releases. Check back soon or sign up for notifications above.
+          </p>
           <Link 
-            href="/" 
-            className="inline-block px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            href="/products" 
+            className="inline-block px-8 py-3 bg-[#b597ff] hover:bg-[#a076ff] text-white font-semibold rounded-md transition-colors"
           >
-            Shop Available Products
+            Shop Current Collection
           </Link>
         </div>
       ) : (
-        <div className="space-y-12">
+        <div className="space-y-16">
           {upcomingDrops.map((product) => (
-            <div key={product.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              <div className="md:grid md:grid-cols-3">
-                <div className="md:col-span-1 relative h-48 md:h-auto bg-gray-100">
+            <div 
+              key={product.id} 
+              className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 border border-[#ced1ff]/30"
+            >
+              <div className="md:grid md:grid-cols-5 items-stretch">
+                {/* Product Image */}
+                <div className="md:col-span-2 relative h-60 sm:h-72 md:h-full bg-gray-50 overflow-hidden">
                   {product.image_urls && product.image_urls.length > 0 ? (
-                    <img 
-                      src={product.image_urls[0]} 
-                      alt={product.name} 
-                      className="w-full h-full object-cover"
+                    <Image
+                      src={product.image_urls[0]}
+                      alt={product.name}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 40vw"
+                      className="object-cover h-full w-full transition-transform duration-700 hover:scale-105"
                     />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                      No Image
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#ced1ff]/20">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-[#76bfd4]/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  )}
+                  
+                  {/* Collection Badge */}
+                  {product.collection && (
+                    <div className="absolute top-3 left-3">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-black/70 text-white backdrop-blur-sm">
+                        {product.collection} Collection
+                      </span>
                     </div>
                   )}
                 </div>
-                <div className="p-6 md:col-span-2">
-                  <div className="flex justify-between items-start">
-                    <h2 className="text-xl font-bold text-gray-900">{product.name}</h2>
-                    <div className="text-right">
-                      <span className="text-xl font-bold text-gray-900">${product.price.toFixed(2)}</span>
-                      {product.inventory_count > 0 && (
-                        <p className="text-sm text-gray-500">Limited stock: {product.inventory_count} available</p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4 flex items-center justify-between">
-                    <div>                      <div className="text-indigo-600 font-semibold">
-                        <ClientOnly fallback="Drops on: Loading date...">
-                          {() => `Drops on: ${formatDate(product.drop_scheduled_time)}`}
-                        </ClientOnly>
-                      </div>{product.drop_scheduled_time && (
-                        <ClientOnly fallback={
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-yellow-100 text-yellow-800 mt-1">
-                            Calculating time...
-                          </span>
-                        }>
-                          {() => {
-                            // Calculate time directly in the client render phase
-                            const timeLeft = calculateTimeRemaining(product.drop_scheduled_time!);
-                            return (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-yellow-100 text-yellow-800 mt-1">
-                                {timeLeft} remaining
-                              </span>
-                            );
-                          }}
-                        </ClientOnly>
-                      )}
+                
+                {/* Product Info */}
+                <div className="md:col-span-3 p-6 md:p-8 flex flex-col">
+                  <div>
+                    <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
+                      <div>
+                        <h2 className="text-2xl sm:text-3xl font-bold text-[#24225c]">{product.name}</h2>
+                        {product.category && (
+                          <p className="text-[#b597ff] mt-1 font-medium">{product.category}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-bold text-[#24225c]">${product.price.toFixed(2)}</span>
+                        {product.inventory_count > 0 && (
+                          <div className="mt-1 text-sm text-[#76bfd4] font-medium">
+                            Limited Edition · {product.inventory_count} pieces
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
-                    <div className="flex space-x-2">
-                      <button className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition">
+                    {product.description && (
+                      <p className="text-gray-600 mb-6 line-clamp-3">{product.description}</p>
+                    )}
+                  </div>
+                  
+                  {/* Countdown and Actions */}
+                  <div className="mt-auto">
+                    <ClientOnly>
+                      {() => {
+                        if (!product.drop_scheduled_time) return null;
+                        
+                        const countdown = calculateTimeRemaining(product.drop_scheduled_time);
+                        const { days, hours, minutes, seconds } = countdown;
+                        
+                        return (
+                          <div className="mb-6">
+                            <div className="text-[#76bfd4] font-medium mb-2">
+                              Drops on: {formatDate(product.drop_scheduled_time)}
+                            </div>
+                              <CountdownTimer 
+                              dropDate={product.drop_scheduled_time}
+                              onComplete={() => window.location.reload()}
+                            />
+                          </div>
+                        );
+                      }}
+                    </ClientOnly>
+                    
+                    <div className="flex flex-wrap gap-3 mt-4">
+                      <button 
+                        className="px-5 py-2.5 bg-[#b597ff] hover:bg-[#a076ff] text-white font-medium rounded-md transition-colors flex items-center"
+                        onClick={() => {
+                          const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement;
+                          if (emailInput) {
+                            emailInput.focus();
+                            emailInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          }
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
                         Set Reminder
                       </button>
-                      <Link href={`/products/${product.id}`} className="px-4 py-2 border border-indigo-600 text-indigo-600 rounded hover:bg-indigo-50 transition">
+                      <Link href={`/products/${product.id}`} className="px-5 py-2.5 border border-[#76bfd4] text-[#76bfd4] hover:bg-[#76bfd4] hover:text-white font-medium rounded-md transition-colors flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
                         View Details
                       </Link>
                     </div>
                   </div>
-                  
-                  {product.description && (
-                    <p className="mt-4 text-gray-600 line-clamp-3">{product.description}</p>
-                  )}
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
-    </div>
+      
+      {/* Newsletter Section */}
+      <div className="mt-20 p-8 sm:p-12 rounded-xl bg-gradient-to-br from-[#24225c] to-[#404099] text-white">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-4">Never Miss a Drop</h2>
+          <p className="mb-8 text-lg opacity-90">
+            Join our exclusive circle of collectors to receive early access to upcoming drops and limited editions.
+          </p>
+            <div className="max-w-md mx-auto">
+            <NotificationForm
+              onSubmit={(email) => {
+                setEmailNotification(email);
+                handleNotificationSignup('newsletter');
+              }}
+              loading={notificationLoading}
+              showSuccess={showNotificationSuccess}
+              buttonText="Subscribe"
+              placeholderText="Your email address"
+              className="flex gap-2"
+            />
+          </div>
+        </div>
+      </div>    </div>
   );
 }
