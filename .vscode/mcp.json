@@ -29,9 +29,15 @@
         "-y",
         "@modelcontextprotocol/server-filesystem",
         "/Users/alien/Desktop",
-        "C:/Users/alien/Desktop/Test Projects/malikli",
-        "/Users/alien/Desktop/Test Projects/malikli"
+        "c:\\Users\\alien\\Desktop\\Me\\Github\\Malikli\\app",
+        "c:\\Users\\alien\\Desktop",
       ]
+    },
+    
+    "Context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
     }
   }
 }

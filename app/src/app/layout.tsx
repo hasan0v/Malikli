@@ -16,7 +16,7 @@ import Copyright from "@/components/ui/Copyright";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "MALIKLI1992 Drops",
+  title: "MALIKLI1992",
   description: "Exclusive periodic drops.",
 };
 
