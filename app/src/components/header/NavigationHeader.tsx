@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image'; // Added Image import
 import AuthStatus from '../auth/AuthStatus';
 import { useAuth } from '@/context/AuthContext';
 import DropdownLink from './DropdownLink';
@@ -18,8 +19,9 @@ const NavigationHeader: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
-            <Link href="/" className="text-xl font-bold text-[#24225c] hover:text-[#76bfd4] transition-colors duration-300">
-              MALIKLI1992
+            <Link href="/" className="flex items-center text-xl font-bold text-[#24225c] hover:text-[#76bfd4] transition-colors duration-300">
+              <Image src="/images/logo.png" alt="MALIKLI1992 Logo" width={70} height={70} className="mr-2" />
+              
             </Link>
             <nav className="ml-6 space-x-4 hidden md:flex">
               <Link href="/about" className="text-[#24225c] hover:text-[#76bfd4] transition-colors duration-300">
