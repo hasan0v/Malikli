@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/utils/supabaseClient';
 
-// Interfaces for the shape of data as fetched from Supabase
+// Интерфейсы для структуры данных, получаемых из Supabase
 interface FetchedCategory {
   id: string;
   name: string;
@@ -20,7 +20,7 @@ interface FetchedImage {
   id: string;
   url: string;
   is_primary: boolean;
-  sort_order?: number; 
+  sort_order?: number;
 }
 
 interface FetchedSize {
@@ -52,7 +52,7 @@ interface FetchedProductData {
   inventory_count: number;
   is_active: boolean;
   created_at: string;
-  drop_scheduled_time?: string | null; // Added to match potential selection
+  drop_scheduled_time?: string | null; // Добавлено для соответствия возможному выбору
   product_categories: { category: FetchedCategory[] | null }[];
   product_collections: { collection: FetchedCollection[] | null }[];
   product_images: FetchedImage[];
@@ -62,7 +62,7 @@ interface FetchedProductData {
 }
 
 
-// Interface for the final transformed Product state
+// Интерфейс для конечного преобразованного состояния Product
 interface Product {
   id: string;
   name: string;
@@ -71,7 +71,7 @@ interface Product {
   inventory_count: number;
   is_active: boolean;
   created_at: string;
-  drop_scheduled_time?: string | null; // Ensure this is part of Product if used
+  drop_scheduled_time?: string | null; // Убедитесь, что это часть Product, если используется
   categories: FetchedCategory[];
   collections: FetchedCollection[];
   images: FetchedImage[];
@@ -84,7 +84,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [filters, setFilters] = useState({
     categoryId: '',
     collectionId: '',
@@ -93,7 +93,7 @@ export default function ProductsPage() {
     minPrice: '',
     maxPrice: '',
   });
-  
+
   const [categories, setCategories] = useState<FetchedCategory[]>([]);
   const [collections, setCollections] = useState<FetchedCollection[]>([]);
   const [colors, setColors] = useState<FetchedColor[]>([]);
@@ -104,18 +104,18 @@ export default function ProductsPage() {
       setLoading(true);
       try {
         const now = new Date().toISOString();
-        
+
         const { data: productsData, error: productsError } = await supabase
           .from('products')
           .select(`
-            id, 
-            name, 
-            description, 
-            price, 
-            inventory_count, 
-            is_active, 
+            id,
+            name,
+            description,
+            price,
+            inventory_count,
+            is_active,
             created_at,
-            drop_scheduled_time, 
+            drop_scheduled_time,
             product_categories!inner (
               category:categories!inner(id, name)
             ),
@@ -140,12 +140,12 @@ export default function ProductsPage() {
           .order('created_at', { ascending: false });
 
         if (productsError) throw productsError;
-        
-        // Directly cast to FetchedProductData[] if the shape is expected to match
+
+        // Прямое приведение к FetchedProductData[], если ожидается соответствие формы
         const rawSupabaseProducts = productsData as FetchedProductData[] | null;
 
         const transformedProducts: Product[] = (rawSupabaseProducts || []).map(rawProduct => {
-          // No need to cast rawProduct again if rawSupabaseProducts is already FetchedProductData[]
+          // Нет необходимости снова приводить rawProduct, если rawSupabaseProducts уже является FetchedProductData[]
           return {
             id: rawProduct.id,
             name: rawProduct.name,
@@ -171,46 +171,46 @@ export default function ProductsPage() {
             variants: rawProduct.product_variants || [],
           };
         });
-        
+
         setProducts(transformedProducts);
-        
+
         const { data: categoriesData, error: categoriesError } = await supabase
           .from('categories')
           .select('id, name')
           .eq('is_active', true)
           .order('name');
-        
+
         if (categoriesError) throw categoriesError;
         setCategories((categoriesData as FetchedCategory[]) || []);
-        
+
         const { data: collectionsData, error: collectionsError } = await supabase
           .from('collections')
           .select('id, name')
           .eq('is_active', true)
           .order('name');
-        
+
         if (collectionsError) throw collectionsError;
         setCollections((collectionsData as FetchedCollection[]) || []);
-        
+
         const { data: sizesData, error: sizesError } = await supabase
           .from('product_sizes')
           .select('id, name, display_name')
           .order('sort_order');
-        
+
         if (sizesError) throw sizesError;
         setSizes((sizesData as FetchedSize[]) || []);
-        
+
         const { data: colorsData, error: colorsError } = await supabase
           .from('product_colors')
           .select('id, name, display_name, hex_code')
           .order('sort_order');
-        
+
         if (colorsError) throw colorsError;
         setColors((colorsData as FetchedColor[]) || []);
-        
+
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'An unknown error occurred';
-        console.error('Error fetching products data:', err);
+        const message = err instanceof Error ? err.message : 'Произошла неизвестная ошибка';
+        console.error('Ошибка при загрузке данных о товарах:', err);
         setError(message);
       } finally {
         setLoading(false);
@@ -219,7 +219,7 @@ export default function ProductsPage() {
 
     fetchAllData();
   }, []);
-  
+
   const filteredProducts = products.filter((product) => {
     if (filters.categoryId && !product.categories.some(category => category.id === filters.categoryId)) {
       return false;
@@ -240,7 +240,7 @@ export default function ProductsPage() {
     }
     return true;
   });
-  
+
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
     setFilters(prev => ({
@@ -248,7 +248,7 @@ export default function ProductsPage() {
       [name]: value,
     }));
   };
-  
+
   const resetFilters = () => {
     setFilters({
       categoryId: '',
@@ -269,18 +269,21 @@ export default function ProductsPage() {
 
   const getMainImageUrl = (product: Product): string => {
     if (!product.images || product.images.length === 0) {
-      return '/placeholder-product.jpg';
+      return '/placeholder-product.jpg'; // Используйте изображение-заполнитель
     }
     const primaryImage = product.images.find(img => img.is_primary);
     if (primaryImage) {
       return primaryImage.url;
     }
-    return product.images[0].url;
+    // Возвращаем первое изображение, если основное не найдено, или отсортированное по sort_order, если есть
+    const sortedImages = product.images.sort((a, b) => (a.sort_order || Infinity) - (b.sort_order || Infinity));
+    return sortedImages[0].url;
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
+        {/* Индикатор загрузки */}
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#76bfd4]"></div>
       </div>
     );
@@ -289,12 +292,12 @@ export default function ProductsPage() {
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500 mb-4">Error loading products: {error}</p>
-        <button 
+        <p className="text-red-500 mb-4">Ошибка загрузки товаров: {error}</p>
+        <button
           onClick={() => window.location.reload()}
           className="bg-[#76bfd4] hover:bg-[#5eabc6] text-white font-semibold py-2 px-4 rounded"
         >
-          Try Again
+          Попробовать снова
         </button>
       </div>
     );
@@ -302,34 +305,38 @@ export default function ProductsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Баннер */}
       <div className="relative h-64 mb-8 rounded-lg overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-[#24225c] to-[#b597ff]"></div>
         <div className="absolute inset-0 flex items-center justify-center text-white z-10">
           <div className="text-center px-6">
-            <h1 className="text-3xl md:text-4xl font-bold mb-2">Explore the Collection</h1>
-            <p className="text-lg md:text-xl">Crafted for the Connoisseur. Shop the Drop.</p>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">Исследуйте коллекцию</h1>
+            <p className="text-lg md:text-xl">Создано для ценителей. Покупайте новинки.</p>
           </div>
         </div>
       </div>
-      
+
+      {/* Вступительный текст */}
       <div className="mb-8 text-center max-w-3xl mx-auto">
         <p className="text-lg text-[#24225c]">
-          Timeless silhouettes re‑imagined for the modern tastemaker, crafted in limited numbers for those who curate rather than consume.
+          Неподвластные времени силуэты, переосмысленные для современного законодателя вкусов, созданные в ограниченном количестве для тех, кто коллекционирует, а не потребляет.
         </p>
       </div>
-      
+
+      {/* Фильтры */}
       <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap gap-4 flex-1">
+            {/* Фильтр по категории */}
             <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-[#24225c] mb-1">Category</label>
-              <select 
+              <label className="block text-sm font-medium text-[#24225c] mb-1">Категория</label>
+              <select
                 name="categoryId"
                 value={filters.categoryId}
                 onChange={handleFilterChange}
                 className="form-select w-full sm:w-40 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#76bfd4] focus:border-transparent"
               >
-                <option value="">All Categories</option>
+                <option value="">Все категории</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -337,16 +344,17 @@ export default function ProductsPage() {
                 ))}
               </select>
             </div>
-            
+
+            {/* Фильтр по коллекции */}
             <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-[#24225c] mb-1">Collection</label>
+              <label className="block text-sm font-medium text-[#24225c] mb-1">Коллекция</label>
               <select
                 name="collectionId"
                 value={filters.collectionId}
                 onChange={handleFilterChange}
                 className="form-select w-full sm:w-40 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#76bfd4] focus:border-transparent"
               >
-                <option value="">All Collections</option>
+                <option value="">Все коллекции</option>
                 {collections.map((collection) => (
                   <option key={collection.id} value={collection.id}>
                     {collection.name}
@@ -354,12 +362,13 @@ export default function ProductsPage() {
                 ))}
               </select>
             </div>
-            
+
+            {/* Фильтр по цвету */}
             <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-[#24225c] mb-1">Color</label>
+              <label className="block text-sm font-medium text-[#24225c] mb-1">Цвет</label>
               <div className="flex gap-1 mb-1">
                 {colors.slice(0, 8).map((color) => (
-                  <div 
+                  <div
                     key={color.id}
                     className={`w-6 h-6 rounded-full cursor-pointer ${filters.colorId === color.id ? 'ring-2 ring-[#76bfd4]' : 'ring-1 ring-gray-300'}`}
                     style={{ backgroundColor: color.hex_code || '#CCCCCC' }}
@@ -377,7 +386,7 @@ export default function ProductsPage() {
                 onChange={handleFilterChange}
                 className="form-select w-full sm:w-40 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#76bfd4] focus:border-transparent"
               >
-                <option value="">All Colors</option>
+                <option value="">Все цвета</option>
                 {colors.map((color) => (
                   <option key={color.id} value={color.id}>
                     {color.display_name}
@@ -385,16 +394,17 @@ export default function ProductsPage() {
                 ))}
               </select>
             </div>
-            
+
+            {/* Фильтр по размеру */}
             <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-[#24225c] mb-1">Size</label>
+              <label className="block text-sm font-medium text-[#24225c] mb-1">Размер</label>
               <select
                 name="sizeId"
                 value={filters.sizeId}
                 onChange={handleFilterChange}
                 className="form-select w-full sm:w-40 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#76bfd4] focus:border-transparent"
               >
-                <option value="">All Sizes</option>
+                <option value="">Все размеры</option>
                 {sizes.map((size) => (
                   <option key={size.id} value={size.id}>
                     {size.display_name}
@@ -402,10 +412,11 @@ export default function ProductsPage() {
                 ))}
               </select>
             </div>
-            
+
+            {/* Фильтр по цене */}
             <div className="w-full sm:w-auto flex gap-2 items-end">
               <div>
-                <label className="block text-sm font-medium text-[#24225c] mb-1">Min $</label>
+                <label className="block text-sm font-medium text-[#24225c] mb-1">Мин. BYN</label>
                 <input
                   type="number"
                   name="minPrice"
@@ -418,7 +429,7 @@ export default function ProductsPage() {
               </div>
               <span className="text-gray-500 mb-2">-</span>
               <div>
-                <label className="block text-sm font-medium text-[#24225c] mb-1">Max $</label>
+                <label className="block text-sm font-medium text-[#24225c] mb-1">Макс. BYN</label>
                 <input
                   type="number"
                   name="maxPrice"
@@ -431,24 +442,26 @@ export default function ProductsPage() {
               </div>
             </div>
           </div>
-          
+
+          {/* Кнопка сброса фильтров */}
           <button
             onClick={resetFilters}
             className="bg-gray-200 hover:bg-gray-300 text-[#24225c] font-medium py-2 px-4 rounded transition-colors duration-300"
           >
-            Reset Filters
+            Сбросить фильтры
           </button>
         </div>
       </div>
-      
+
+      {/* Список товаров */}
       {filteredProducts.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <p className="text-gray-500 mb-2">No products found matching your criteria.</p>
+          <p className="text-gray-500 mb-2">Товары, соответствующие вашим критериям, не найдены.</p>
           <button
             onClick={resetFilters}
             className="text-[#b597ff] hover:underline"
           >
-            Clear filters and show all products
+            Очистить фильтры и показать все товары
           </button>
         </div>
       ) : (
@@ -456,7 +469,7 @@ export default function ProductsPage() {
           {filteredProducts.map((product) => {
             const inventory = calculateInventory(product);
             const imageUrl = getMainImageUrl(product);
-            
+
             return (
               <Link
                 key={product.id}
@@ -466,22 +479,24 @@ export default function ProductsPage() {
                 <div className="relative h-64 bg-gray-100">
                   <Image
                     src={imageUrl}
-                    alt={product.name}
+                    alt={product.name} // alt текст должен быть на языке контента или быть осмысленным для поисковиков
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                   />
+                  {/* Значки статуса наличия */}
                   {inventory <= 10 && inventory > 0 && (
                     <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                      {inventory <= 5 ? `Only ${inventory} left` : 'Low Stock'}
+                      {inventory <= 5 ? `Осталось ${inventory} шт.` : 'Мало на складе'}
                     </div>
                   )}
                   {inventory === 0 && (
                     <div className="absolute top-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded">
-                      Sold Out
+                      Распродано
                     </div>
                   )}
-                  
+
+                  {/* Значок категории */}
                   {product.categories.length > 0 && (
                     <div className="absolute top-2 left-2 bg-[#24225c] text-white text-xs px-2 py-1 rounded">
                       {product.categories[0].name}
@@ -492,14 +507,15 @@ export default function ProductsPage() {
                   <h2 className="text-lg font-semibold text-[#24225c] group-hover:text-[#76bfd4] transition-colors duration-300 truncate">
                     {product.name}
                   </h2>
-                  <p className="text-gray-600 mt-1">${product.price.toFixed(2)}</p>
-                  
+                  <p className="text-gray-600 mt-1">BYN {product.price.toFixed(2)}</p>
+
+                  {/* Доступные цвета */}
                   {product.colors.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {product.colors.slice(0, 5).map((color) => (
-                        <span 
-                          key={color.id} 
-                          className="inline-block h-4 w-4 rounded-full border border-gray-300" 
+                        <span
+                          key={color.id}
+                          className="inline-block h-4 w-4 rounded-full border border-gray-300"
                           style={{ backgroundColor: color.hex_code || '#CCCCCC' }}
                           title={color.display_name}
                         ></span>
@@ -509,11 +525,12 @@ export default function ProductsPage() {
                       )}
                     </div>
                   )}
-                  
+
+                  {/* Доступные размеры */}
                   {product.sizes.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {product.sizes.slice(0, 5).map((size) => (
-                        <span 
+                        <span
                           key={size.id}
                           className="inline-block px-1 text-xs border border-gray-300 rounded"
                         >
@@ -534,3 +551,4 @@ export default function ProductsPage() {
     </div>
   );
 }
+

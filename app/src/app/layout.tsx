@@ -6,6 +6,7 @@ import { CartProvider } from "@/context/CartContext";
 import ClientNavigation from "@/components/header/ClientNavigation"; // Import ClientNavigation
 import ClientCartSidebar from "@/components/cart/ClientCartSidebar";
 import Copyright from "@/components/ui/Copyright";
+import Footer from "@/components/footer/Footer"; // Add this import
 
 // Remove dynamic import and HeaderPlaceholder
 // const NavigationHeader = dynamic(
@@ -35,7 +36,8 @@ export default function RootLayout({
             <main className="flex-grow container mx-auto px-4 py-8">
               {children}
             </main>
-            <Copyright />
+            {/* <Copyright /> */}
+            <Footer /> {/* Add the Footer component here */}
           </CartProvider>
         </AuthProvider>
       </body>

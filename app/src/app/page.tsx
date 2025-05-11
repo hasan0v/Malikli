@@ -1,13 +1,13 @@
-'use client'; // Make this a client component to fetch data client-side
+'use client'; // Сделать этот компонент клиентским для загрузки данных на стороне клиента
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/utils/supabaseClient';
-// import { useAuth } from '@/context/AuthContext'; // user and profile are not used
+// import { useAuth } from '@/context/AuthContext'; // user и profile не используются
 import { useRouter } from 'next/navigation';
 
-// Define the structure of a Product based on your schema
+// Определите структуру Product на основе вашей схемы
 interface Product {
   id: string;
   name: string;
@@ -27,20 +27,20 @@ interface NextDrop {
   drop_scheduled_time: string;
 }
 
-// Helper function to get error messages
+// Вспомогательная функция для получения сообщений об ошибках
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
   if (error && typeof (error as { message?: unknown }).message === 'string') {
     return (error as { message: string }).message;
   }
-  return 'An unknown error occurred.';
+  return 'Произошла неизвестная ошибка.';
 };
 
 export default function HomePage() {
-  // const { user, profile } = useAuth(); // user and profile are not used in this component's logic
+  // const { user, profile } = useAuth(); // user и profile не используются в логике этого компонента
   const router = useRouter();
-  
+
   const [products, setProducts] = useState<Product[]>([]);
   const [nextDrop, setNextDrop] = useState<NextDrop | null>(null);
   const [timeRemaining, setTimeRemaining] = useState({
@@ -52,8 +52,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSignUpModal, setShowSignUpModal] = useState(false);
-  
-  // Form state for signup
+
+  // Состояние формы для регистрации
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -69,23 +69,23 @@ export default function HomePage() {
       setError(null);
       try {
         const now = new Date().toISOString();
-        
-        const { data: upcomingDropsData, error: dropError } = await supabase // Renamed data to upcomingDropsData
+
+        const { data: upcomingDropsData, error: dropError } = await supabase // Переименовали data в upcomingDropsData
           .from('products')
           .select('id, name, drop_scheduled_time')
           .eq('is_active', true)
           .gt('drop_scheduled_time', now)
           .order('drop_scheduled_time', { ascending: true })
           .limit(1);
-          
+
         if (dropError) throw dropError;
-        
-        const upcomingDrops = upcomingDropsData as NextDrop[] | null; // Cast
+
+        const upcomingDrops = upcomingDropsData as NextDrop[] | null; // Приведение типа
         if (upcomingDrops && upcomingDrops.length > 0) {
           setNextDrop(upcomingDrops[0]);
         }
-        
-        const { data: availableProductsData, error: productsError } = await supabase // Renamed data
+
+        const { data: availableProductsData, error: productsError } = await supabase // Переименовали data
           .from('products')
           .select('*')
           .eq('is_active', true)
@@ -94,91 +94,91 @@ export default function HomePage() {
           .order('created_at', { ascending: false });
 
         if (productsError) throw productsError;
-        
-        setProducts((availableProductsData as Product[]) || []); // Cast data
+
+        setProducts((availableProductsData as Product[]) || []); // Приведение типа data
       } catch (err: unknown) {
         const message = getErrorMessage(err);
-        console.error("Error fetching data:", err);
-        setError(`Failed to load data: ${message}`);
+        console.error("Ошибка при загрузке данных:", err);
+        setError(`Не удалось загрузить данные: ${message}`);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []); 
-  
+  }, []);
+
   useEffect(() => {
     if (!nextDrop?.drop_scheduled_time) return;
-    
+
     const calculateTimeRemaining = () => {
       const dropTime = new Date(nextDrop.drop_scheduled_time).getTime();
       const currentTime = new Date().getTime();
       const timeDiff = dropTime - currentTime;
-      
+
       if (timeDiff <= 0) {
-        // Instead of reload, maybe just clear nextDrop and fetch products again or set a flag
-        setNextDrop(null); // This will trigger the other view
-        // Optionally, you could call fetchData() again here if new products become available
+        // Вместо перезагрузки, возможно, просто очистить nextDrop и снова загрузить товары или установить флаг
+        setNextDrop(null); // Это вызовет другой вид
+        // При желании, здесь можно снова вызвать fetchData(), если станут доступны новые товары
         return;
       }
-      
+
       const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
-      
+
       setTimeRemaining({ days, hours, minutes, seconds });
     };
-    
+
     calculateTimeRemaining();
     const timer = setInterval(calculateTimeRemaining, 1000);
-    
+
     return () => clearInterval(timer);
   }, [nextDrop]);
-  
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
     setFormSuccess('');
     setIsSubmitting(true);
-    
+
     if (!firstName || !lastName || !email || !password) {
-      setFormError('All fields are required');
+      setFormError('Все поля обязательны для заполнения');
       setIsSubmitting(false);
       return;
     }
     if (password !== confirmPassword) {
-      setFormError('Passwords do not match');
+      setFormError('Пароли не совпадают');
       setIsSubmitting(false);
       return;
     }
     if (password.length < 8) {
-      setFormError('Password must be at least 8 characters');
+      setFormError('Пароль должен содержать не менее 8 символов');
       setIsSubmitting(false);
       return;
     }
-    
+
     try {
-      // Sign up with email and password
-      // const { data, error } = await supabase.auth.signUp({ // 'data' is assigned a value but never used.
-      const { error: signUpError } = await supabase.auth.signUp({ // Destructure only error if data is not used
+      // Регистрация с помощью email и пароля
+      // const { data, error } = await supabase.auth.signUp({ // 'data' присвоено значение, но никогда не используется.
+      const { error: signUpError } = await supabase.auth.signUp({ // Деструктурируем только error, если data не используется
         email,
         password,
         options: {
           data: {
             first_name: firstName,
             last_name: lastName,
-            // Supabase automatically creates a profile via trigger or you'd insert into 'profiles' table here
-            // if your AuthContext doesn't handle it.
+            // Supabase автоматически создает профиль через триггер, или вам нужно будет вставить данные в таблицу 'profiles' здесь
+            // если ваш AuthContext не обрабатывает это.
           }
         }
       });
-      
+
       if (signUpError) throw signUpError;
-      
-      setFormSuccess("Success! You&apos;re registered and will be notified.");
-      
+
+      setFormSuccess("Успешно! Вы зарегистрированы и получите уведомление.");
+
       setTimeout(() => {
         const dropIsActive = nextDrop && new Date(nextDrop.drop_scheduled_time) <= new Date();
         if (dropIsActive) {
@@ -186,7 +186,7 @@ export default function HomePage() {
         } else {
           setShowSignUpModal(false);
           setFormSuccess('');
-          // Clear form fields
+          // Очистить поля формы
           setFirstName('');
           setLastName('');
           setEmail('');
@@ -194,16 +194,16 @@ export default function HomePage() {
           setConfirmPassword('');
         }
       }, 2000);
-      
+
     } catch (err: unknown) {
       const message = getErrorMessage(err);
-      console.error('Signup error:', err);
-      setFormError(message || 'Failed to sign up. Please try again.');
+      console.error('Ошибка регистрации:', err);
+      setFormError(message || 'Не удалось зарегистрироваться. Пожалуйста, попробуйте еще раз.');
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
   if (nextDrop && new Date(nextDrop.drop_scheduled_time) > new Date()) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -211,45 +211,45 @@ export default function HomePage() {
           <h1 className="text-4xl md:text-5xl font-bold text-[#24225c] mb-6">
             {nextDrop.name}
           </h1>
-          
+
           <p className="text-xl md:text-2xl text-[#24225c] mb-10 max-w-2xl">
-            Curated Exclusivity. Dropping Soon.
+            Эксклюзивный отбор. Скоро в продаже.
           </p>
-          
+
           <div className="mb-12">
-            <h2 className="text-xl mb-4 font-semibold text-[#76bfd4]">Next Drop Arrives In:</h2>
+            <h2 className="text-xl mb-4 font-semibold text-[#76bfd4]">Следующий дроп через:</h2>
             <div className="grid grid-cols-4 gap-4 text-center">
               <div className="p-4 bg-[#ced1ff] rounded-lg">
                 <span className="block text-3xl md:text-4xl font-bold text-[#24225c]">{timeRemaining.days}</span>
-                <span className="text-gray-600">Days</span>
+                <span className="text-gray-600">Дней</span>
               </div>
               <div className="p-4 bg-[#ced1ff] rounded-lg">
                 <span className="block text-3xl md:text-4xl font-bold text-[#24225c]">{timeRemaining.hours}</span>
-                <span className="text-gray-600">Hours</span>
+                <span className="text-gray-600">Часов</span>
               </div>
               <div className="p-4 bg-[#ced1ff] rounded-lg">
                 <span className="block text-3xl md:text-4xl font-bold text-[#24225c]">{timeRemaining.minutes}</span>
-                <span className="text-gray-600">Minutes</span>
+                <span className="text-gray-600">Минут</span>
               </div>
               <div className="p-4 bg-[#ced1ff] rounded-lg">
                 <span className="block text-3xl md:text-4xl font-bold text-[#24225c]">{timeRemaining.seconds}</span>
-                <span className="text-gray-600">Seconds</span>
+                <span className="text-gray-600">Секунд</span>
               </div>
             </div>
           </div>
-          
+
           <button
             onClick={() => setShowSignUpModal(true)}
             className="bg-[#b597ff] hover:bg-[#9f81ff] transition-colors duration-300 text-white font-semibold py-3 px-8 rounded-md text-lg"
           >
-            Sign Up for Drop Access
+            Зарегистрироваться для доступа к дропу
           </button>
         </div>
-        
+
         {showSignUpModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative">
-              <button 
+              <button
                 onClick={() => setShowSignUpModal(false)}
                 className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
               >
@@ -257,9 +257,9 @@ export default function HomePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              
-              <h2 className="text-2xl font-bold text-[#24225c] mb-6">Sign Up for Drop Access</h2>
-              
+
+              <h2 className="text-2xl font-bold text-[#24225c] mb-6">Регистрация для доступа к дропу</h2>
+
               {formSuccess ? (
                 <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
                   {formSuccess}
@@ -271,10 +271,10 @@ export default function HomePage() {
                       {formError}
                     </div>
                   )}
-                  
+
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">Имя</label>
                       <input
                         id="firstName"
                         type="text"
@@ -285,7 +285,7 @@ export default function HomePage() {
                       />
                     </div>
                     <div>
-                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">Фамилия</label>
                       <input
                         id="lastName"
                         type="text"
@@ -296,9 +296,9 @@ export default function HomePage() {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="mb-4">
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Адрес электронной почты</label>
                     <input
                       id="email"
                       type="email"
@@ -308,9 +308,9 @@ export default function HomePage() {
                       required
                     />
                   </div>
-                  
+
                   <div className="mb-4">
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Пароль</label>
                     <input
                       id="password"
                       type="password"
@@ -320,11 +320,11 @@ export default function HomePage() {
                       required
                       minLength={8}
                     />
-                    <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters</p>
+                    <p className="text-xs text-gray-500 mt-1">Не менее 8 символов</p>
                   </div>
-                  
+
                   <div className="mb-6">
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Подтвердите пароль</label>
                     <input
                       id="confirmPassword"
                       type="password"
@@ -334,13 +334,13 @@ export default function HomePage() {
                       required
                     />
                   </div>
-                  
+
                   <button
                     type="submit"
                     disabled={isSubmitting}
                     className="w-full bg-[#76bfd4] hover:bg-[#5eabc6] text-white font-semibold py-2.5 px-4 rounded-md transition-colors duration-300 disabled:bg-gray-400"
                   >
-                    {isSubmitting ? 'Signing Up...' : 'Sign Up'}
+                    {isSubmitting ? 'Регистрация...' : 'Зарегистрироваться'}
                   </button>
                 </form>
               )}
@@ -352,7 +352,7 @@ export default function HomePage() {
   }
 
   if (loading) {
-    return <div className="text-center py-10">Loading products...</div>;
+    return <div className="text-center py-10">Загрузка товаров...</div>;
   }
 
   if (error) {
@@ -366,22 +366,22 @@ export default function HomePage() {
         </div>
         <div className="absolute inset-0 flex items-center justify-center text-white">
           <div className="text-center p-6">
-            <h1 className="text-3xl md:text-4xl font-bold mb-2">Explore the Collection</h1>
-            <p className="text-lg md:text-xl">Crafted for the Connoisseur. Shop the Drop.</p>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">Исследуйте коллекцию</h1>
+            <p className="text-lg md:text-xl">Создано для ценителей. Покупайте новинки.</p>
           </div>
         </div>
       </div>
-      
+
       <div className="mb-8 text-center max-w-3xl mx-auto">
         <p className="text-lg text-[#24225c]">
-          Timeless silhouettes re‑imagined for the modern tastemaker, crafted in limited numbers for those who curate rather than consume.
+          Неподвластные времени силуэты, переосмысленные для современного законодателя вкусов, созданные в ограниченном количестве для тех, кто коллекционирует, а не потребляет.
         </p>
       </div>
-      
+
       {products.length === 0 ? (
         <div className="text-center py-10 bg-gray-50 rounded-lg">
-          <p className="text-gray-500 mb-2">No products available right now.</p>
-          <p className="text-[#b597ff]">Check back soon for upcoming drops!</p>
+          <p className="text-gray-500 mb-2">Товары в данный момент отсутствуют.</p>
+          <p className="text-[#b597ff]">Заходите позже, чтобы узнать о предстоящих дропах!</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -391,21 +391,21 @@ export default function HomePage() {
                 {product.image_urls && product.image_urls.length > 0 ? (
                   <Image
                     src={product.image_urls[0]}
-                    alt={product.name}
+                    alt={product.name} // Предполагается, что product.name может быть на русском или это название бренда/товара
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     style={{ objectFit: 'cover' }}
                     className="transition-transform duration-300 group-hover:scale-105"
                   />
                 ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400">No Image</div>
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-400">Нет изображения</div>
                 )}
               </div>
               <div className="p-4">
                 <h2 className="text-lg font-semibold truncate group-hover:text-[#76bfd4]">{product.name}</h2>
-                <p className="text-gray-700 mt-1">${product.price.toFixed(2)}</p>
-                {product.inventory_count > 0 && product.inventory_count <= 5 && ( // Only show if inventory > 0
-                  <p className="text-xs text-red-600 mt-1">Only {product.inventory_count} left!</p>
+                <p className="text-gray-700 mt-1">BYN {product.price.toFixed(2)}</p>
+                {product.inventory_count > 0 && product.inventory_count <= 5 && ( // Показывать только если товар в наличии > 0
+                  <p className="text-xs text-red-600 mt-1">Осталось {product.inventory_count} шт.!</p>
                 )}
               </div>
             </Link>

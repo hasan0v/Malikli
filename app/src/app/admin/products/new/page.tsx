@@ -596,7 +596,7 @@ const NewProductPage: React.FC = () => {
 
                         {/* Price */}
                         <div>
-                            <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">Price ($) <span className="text-red-500">*</span></label>
+                            <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">Price (BYN) <span className="text-red-500">*</span></label>
                             <input
                                 type="number"
                                 id="price"

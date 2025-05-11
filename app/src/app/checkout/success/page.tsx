@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 
-// Define a more specific type for order items
+// Определите более конкретный тип для позиций заказа
 interface OrderItem {
-  id: string; // Or product_id, depending on your data structure
+  id: string; // Или product_id, в зависимости от структуры ваших данных
   quantity: number;
   product?: {
     name: string;
@@ -28,7 +28,7 @@ interface OrderConfirmation {
     country: string;
   };
   shippingMethod: string;
-  items: OrderItem[]; // Use the specific OrderItem type
+  items: OrderItem[]; // Используйте конкретный тип OrderItem
   subtotal: number;
   shipping: number;
   tax: number;
@@ -41,35 +41,35 @@ export default function CheckoutSuccessPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get order confirmation from session storage
+    // Получить подтверждение заказа из sessionStorage
     const storedOrderDetails = sessionStorage.getItem('orderConfirmation');
-    
+
     if (storedOrderDetails) {
       try {
-        const parsedDetails = JSON.parse(storedOrderDetails) as OrderConfirmation; // Cast to OrderConfirmation
+        const parsedDetails = JSON.parse(storedOrderDetails) as OrderConfirmation; // Приведение к OrderConfirmation
         setOrderDetails(parsedDetails);
       } catch (error) {
-        console.error('Error parsing order details:', error);
-        // Optionally, redirect or show an error if parsing fails
-        // router.push('/'); 
+        console.error('Ошибка при разборе деталей заказа:', error);
+        // При желании перенаправить или показать ошибку, если разбор не удался
+        // router.push('/');
       }
     } else {
-      // Redirect to home if no order details found (prevents accessing success page directly)
-      // Wait a moment to ensure this isn't triggered during initial load
+      // Перенаправить на главную, если детали заказа не найдены (предотвращает прямой доступ к странице успеха)
+      // Подождать немного, чтобы это не срабатывало во время начальной загрузки
       const timer = setTimeout(() => {
-        // Check orderDetails state here, not storedOrderDetails again
-        if (!orderDetails && !sessionStorage.getItem('orderConfirmation')) { // Double check to avoid race conditions
+        // Проверить состояние orderDetails здесь, а не storedOrderDetails снова
+        if (!orderDetails && !sessionStorage.getItem('orderConfirmation')) { // Двойная проверка во избежание гонки состояний
           router.push('/');
         }
       }, 1000);
-      
+
       return () => clearTimeout(timer);
     }
-    
-    setLoading(false);
-  }, [router, orderDetails]); // Added orderDetails to dependency array
 
-  // Format the date to a more readable format
+    setLoading(false);
+  }, [router, orderDetails]); // Добавили orderDetails в массив зависимостей
+
+  // Форматировать дату в более читаемый формат
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = {
       year: 'numeric',
@@ -81,43 +81,43 @@ export default function CheckoutSuccessPage() {
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
-  // Get estimated delivery date based on shipping method
+  // Получить предполагаемую дату доставки на основе способа доставки
   const getEstimatedDelivery = (method: string, orderDate: string) => {
     const orderTime = new Date(orderDate);
     let daysToAdd = 0;
-    
+
     switch (method) {
       case 'standard':
-        daysToAdd = 5; // 3-5 business days, using max
+        daysToAdd = 5; // 3-5 рабочих дней, используем максимум
         break;
       case 'express':
-        daysToAdd = 2; // 1-2 business days, using max
+        daysToAdd = 2; // 1-2 рабочих дня, используем максимум
         break;
       case 'overnight':
-        daysToAdd = 1; // Next business day
+        daysToAdd = 1; // На следующий рабочий день
         break;
       default:
         daysToAdd = 7;
     }
-    
+
     const deliveryDate = new Date(orderTime);
     let daysAdded = 0;
-    
+
     while (daysAdded < daysToAdd) {
       deliveryDate.setDate(deliveryDate.getDate() + 1);
       const dayOfWeek = deliveryDate.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Skip weekends (0 is Sunday, 6 is Saturday)
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Пропускать выходные (0 - воскресенье, 6 - суббота)
         daysAdded++;
       }
     }
-    
+
     const options: Intl.DateTimeFormatOptions = {
       weekday: 'long',
       month: 'long',
       day: 'numeric',
       year: 'numeric'
     };
-    
+
     return deliveryDate.toLocaleDateString(undefined, options);
   };
 
@@ -132,12 +132,12 @@ export default function CheckoutSuccessPage() {
   if (!orderDetails) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold text-[#24225c] mb-4">Order Not Found</h1>
+        <h1 className="text-2xl font-bold text-[#24225c] mb-4">Заказ не найден</h1>
         <p className="text-gray-600 mb-6">
-          We couldn&apos;t find your order details. Please try placing an order first.
+          Мы не смогли найти детали вашего заказа. Пожалуйста, попробуйте разместить заказ сначала.
         </p>
         <Link href="/products" className="bg-[#76bfd4] hover:bg-[#5eabc6] text-white font-semibold py-3 px-6 rounded transition-colors duration-300">
-          Browse Products
+          Просмотреть товары
         </Link>
       </div>
     );
@@ -145,46 +145,46 @@ export default function CheckoutSuccessPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Success Banner */}
+      {/* Баннер успеха */}
       <div className="mb-8 text-center">
         <div className="inline-block p-4 bg-green-100 rounded-full mb-3">
           <svg className="w-12 h-12 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
           </svg>
         </div>
-        <h1 className="text-3xl font-bold text-[#24225c] mb-2">Order Placed Successfully!</h1>
+        <h1 className="text-3xl font-bold text-[#24225c] mb-2">Заказ успешно размещен!</h1>
         <p className="text-gray-600">
-          Thank you for your purchase. We&apos;ve sent a confirmation email to your inbox.
+          Спасибо за покупку. Мы отправили подтверждение на ваш электронный адрес.
         </p>
       </div>
-      
-      {/* Order Information */}
+
+      {/* Информация о заказе */}
       <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
         <div className="grid md:grid-cols-2 gap-8">
           <div>
-            <h2 className="text-xl font-semibold text-[#24225c] mb-3">Order Information</h2>
+            <h2 className="text-xl font-semibold text-[#24225c] mb-3">Информация о заказе</h2>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-gray-600">Order Number:</span>
+                <span className="text-gray-600">Номер заказа:</span>
                 <span className="text-[#24225c] font-medium">{orderDetails.orderNumber}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Date:</span>
+                <span className="text-gray-600">Дата:</span>
                 <span className="text-[#24225c]">{formatDate(orderDetails.orderDate)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Payment Method:</span>
-                <span className="text-[#24225c]">Credit Card</span> {/* Assuming this is static or comes from elsewhere */}
+                <span className="text-gray-600">Способ оплаты:</span>
+                <span className="text-[#24225c]">Кредитная карта</span> {/* Предполагается, что это статично или приходит из другого места */}
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Order Total:</span>
+                <span className="text-gray-600">Итого по заказу:</span>
                 <span className="text-[#24225c] font-semibold">${orderDetails.total.toFixed(2)}</span>
               </div>
             </div>
           </div>
-          
+
           <div>
-            <h2 className="text-xl font-semibold text-[#24225c] mb-3">Shipping Information</h2>
+            <h2 className="text-xl font-semibold text-[#24225c] mb-3">Информация о доставке</h2>
             <div className="mb-4">
               <p className="font-medium text-[#24225c]">{orderDetails.shippingAddress.name}</p>
               <p className="text-gray-600">{orderDetails.shippingAddress.address}</p>
@@ -194,16 +194,16 @@ export default function CheckoutSuccessPage() {
               <p className="text-gray-600">{orderDetails.shippingAddress.country}</p>
             </div>
             <div className="mb-2">
-              <span className="font-medium text-[#24225c]">Shipping Method:</span>
+              <span className="font-medium text-[#24225c]">Способ доставки:</span>
               <span className="text-gray-600 ml-1">
-                {orderDetails.shippingMethod === 'standard' && 'Standard Shipping (3-5 business days)'}
-                {orderDetails.shippingMethod === 'express' && 'Express Shipping (1-2 business days)'}
-                {orderDetails.shippingMethod === 'overnight' && 'Overnight Shipping (Next business day)'}
-                {orderDetails.shippingMethod !== 'standard' && orderDetails.shippingMethod !== 'express' && orderDetails.shippingMethod !== 'overnight' && 'Unknown Method'}
+                {orderDetails.shippingMethod === 'standard' && 'Стандартная доставка (3-5 рабочих дней)'}
+                {orderDetails.shippingMethod === 'express' && 'Экспресс-доставка (1-2 рабочих дня)'}
+                {orderDetails.shippingMethod === 'overnight' && 'Доставка на следующий день (на следующий рабочий день)'}
+                {orderDetails.shippingMethod !== 'standard' && orderDetails.shippingMethod !== 'express' && orderDetails.shippingMethod !== 'overnight' && 'Неизвестный способ'}
               </span>
             </div>
             <div>
-              <span className="font-medium text-[#24225c]">Estimated Delivery:</span>
+              <span className="font-medium text-[#24225c]">Предполагаемая доставка:</span>
               <span className="text-gray-600 ml-1">
                 {getEstimatedDelivery(orderDetails.shippingMethod, orderDetails.orderDate)}
               </span>
@@ -211,11 +211,11 @@ export default function CheckoutSuccessPage() {
           </div>
         </div>
       </div>
-      
-      {/* Order Items */}
+
+      {/* Позиции заказа */}
       <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-        <h2 className="text-xl font-semibold text-[#24225c] mb-6">Order Items</h2>
-        
+        <h2 className="text-xl font-semibold text-[#24225c] mb-6">Позиции заказа</h2>
+
         <div className="divide-y divide-gray-200">
           {orderDetails.items.map((item) => (
             <div key={item.id} className="py-4 flex items-start">
@@ -223,60 +223,60 @@ export default function CheckoutSuccessPage() {
                 {item.product?.image_urls && item.product.image_urls.length > 0 ? (
                   <Image
                     src={item.product.image_urls[0]}
-                    alt={item.product?.name || 'Product image'}
+                    alt={item.product?.name || 'Изображение товара'}
                     fill
                     sizes="80px"
                     style={{ objectFit: 'cover' }}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-400">
-                    <span>No Image</span>
+                    <span>Нет изображения</span>
                   </div>
                 )}
               </div>
-              
+
               <div className="flex-grow">
-                <h3 className="text-[#24225c] font-medium">{item.product?.name || 'Unknown Product'}</h3>
-                <p className="text-gray-500">Quantity: {item.quantity}</p>
+                <h3 className="text-[#24225c] font-medium">{item.product?.name || 'Неизвестный товар'}</h3>
+                <p className="text-gray-500">Количество: {item.quantity}</p>
               </div>
-              
+
               <div className="text-[#24225c] font-medium">
                 ${((item.product?.price || 0) * item.quantity).toFixed(2)}
               </div>
             </div>
           ))}
         </div>
-        
-        {/* Order Summary */}
+
+        {/* Итоги заказа */}
         <div className="mt-6 pt-6 border-t border-gray-200">
           <div className="space-y-2">
             <div className="flex justify-between">
-              <span className="text-gray-600">Subtotal:</span>
+              <span className="text-gray-600">Подытог:</span>
               <span className="text-[#24225c]">${orderDetails.subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Shipping:</span>
+              <span className="text-gray-600">Доставка:</span>
               <span className="text-[#24225c]">${orderDetails.shipping.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Tax:</span>
+              <span className="text-gray-600">Налог:</span>
               <span className="text-[#24225c]">${orderDetails.tax.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-lg font-semibold pt-2 border-t border-gray-200">
-              <span className="text-[#24225c]">Total:</span>
+              <span className="text-[#24225c]">Итого:</span>
               <span className="text-[#24225c]">${orderDetails.total.toFixed(2)}</span>
             </div>
           </div>
         </div>
       </div>
-      
-      {/* Next Actions */}
+
+      {/* Следующие действия */}
       <div className="flex flex-col md:flex-row gap-4 justify-center">
         <Link href="/products" className="bg-[#b597ff] hover:bg-[#9f81ff] text-white font-semibold py-3 px-6 rounded-md transition-colors duration-300">
-          Continue Shopping
+          Продолжить покупки
         </Link>
         <Link href="/profile" className="bg-white border border-gray-300 hover:bg-gray-50 text-[#24225c] font-semibold py-3 px-6 rounded-md transition-colors duration-300">
-          View My Orders
+          Просмотреть мои заказы
         </Link>
       </div>
     </div>

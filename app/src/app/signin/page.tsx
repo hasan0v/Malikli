@@ -6,11 +6,11 @@ const SignInPage: React.FC = () => {
     <div className="flex justify-center items-start pt-10 md:pt-16">
       <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-md">
         <SignInForm />
-        {/* Optional: Add link to Sign Up */}
+        {/* Необязательно: добавить ссылку на регистрацию */}
         <p className="mt-4 text-center text-sm text-gray-600">
-          Don&apos;t have an account?{' '}
+          Нет аккаунта?{' '}
           <a href="/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
-            Sign up
+            Зарегистрироваться
           </a>
         </p>
       </div>

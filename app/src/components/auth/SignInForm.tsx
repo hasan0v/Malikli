@@ -20,12 +20,12 @@ export const SignInForm: React.FC = () => {
     });
 
     if (error) {
-      console.error('Sign in error:', error.message);
-      setError(`Sign in failed: ${error.message}`);
+      console.error('Ошибка входа:', error.message);
+      setError(`Ошибка входа: ${error.message}`);
     } else {
-      console.log('Sign in successful!');
-      // AuthProvider listener will handle state update and redirect/UI change
-      // No need to clear form here as the component might unmount or page might redirect
+      console.log('Вход выполнен успешно!');
+      // Слушатель AuthProvider обработает обновление состояния и перенаправление/изменение UI
+      // Нет необходимости очищать форму здесь, так как компонент может размонтироваться или страница может перенаправиться
     }
 
     setLoading(false);
@@ -33,9 +33,9 @@ export const SignInForm: React.FC = () => {
 
   return (
     <form onSubmit={handleSignIn} className="space-y-4 p-4 border rounded shadow-md">
-      <h2 className="text-xl font-semibold">Sign In</h2>
+      <h2 className="text-xl font-semibold">Вход</h2>
       <div>
-        <label htmlFor="signin-email" className="block text-sm font-medium text-gray-700">Email:</label>
+        <label htmlFor="signin-email" className="block text-sm font-medium text-gray-700">Электронная почта:</label>
         <input
           id="signin-email"
           type="email"
@@ -46,7 +46,7 @@ export const SignInForm: React.FC = () => {
         />
       </div>
       <div>
-        <label htmlFor="signin-password" className="block text-sm font-medium text-gray-700">Password:</label>
+        <label htmlFor="signin-password" className="block text-sm font-medium text-gray-700">Пароль:</label>
         <input
           id="signin-password"
           type="password"
@@ -61,7 +61,7 @@ export const SignInForm: React.FC = () => {
         disabled={loading}
         className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
       >
-        {loading ? 'Signing In...' : 'Sign In'}
+        {loading ? 'Вход...' : 'Войти'}
       </button>
       {error && <p className="text-red-600 text-sm">{error}</p>}
     </form>

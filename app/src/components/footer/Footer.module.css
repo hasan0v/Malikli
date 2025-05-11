@@ -1,0 +1,148 @@
+
+/* Footer.module.css */
+.footerContainer {
+  background-color: #f8f9fa; /* Light grey, adjust to your theme */
+  color: #333;
+  padding: 40px 20px;
+  font-size: 0.9rem;
+}
+
+.footerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Responsive columns */
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto 30px auto; /* Centered with bottom margin */
+}
+
+.footerColumn {
+  /* styles for individual columns */
+}
+
+.columnTitle {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 15px;
+  color: #111; /* Darker title */
+}
+
+.footerColumn ul {
+  list-style: none;
+  padding: 0;
+}
+
+.footerColumn ul li {
+  margin-bottom: 8px;
+}
+
+.footerColumn ul li a {
+  color: #555;
+  text-decoration: none;
+}
+
+.footerColumn ul li a:hover {
+  text-decoration: underline;
+  color: #007bff; /* Your brand's accent color */
+}
+
+.footerColumn p {
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+/* Newsletter (if you add it) */
+.newsletterSection {
+    text-align: center; /* Or align as needed */
+    margin: 30px auto;
+    max-width: 500px;
+}
+.newsletterForm {
+    display: flex;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+.newsletterForm input[type="email"] {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px 0 0 4px;
+}
+.newsletterForm button {
+    padding: 10px 15px;
+    background-color: #007bff; /* Your brand color */
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+}
+.newsletterForm button:hover {
+    background-color: #0056b3;
+}
+.newsletterDisclaimer {
+    font-size: 0.8rem;
+    color: #666;
+}
+.newsletterDisclaimer a {
+    color: #007bff;
+    text-decoration: none;
+}
+.newsletterDisclaimer a:hover {
+    text-decoration: underline;
+}
+
+
+.bottomBar {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 20px;
+  display: flex;
+  flex-wrap: wrap; /* Allow wrapping on small screens */
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.legalInfo {
+  text-align: left; /* Or center on small screens */
+  margin-bottom: 10px; /* Space if it wraps */
+}
+.legalInfo p {
+    margin: 5px 0;
+}
+
+.paymentIcons {
+  text-align: right; /* Or center on small screens */
+  display: flex;
+  gap: 10px;
+}
+.paymentIcons span { /* Temporary for text placeholders */
+    border: 1px solid #ccc;
+    padding: 5px 10px;
+}
+/* .paymentIcons img, .paymentIcons svg { ... styles for actual icons ... } */
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .footerGrid {
+    grid-template-columns: 1fr; /* Stack columns */
+    text-align: center;
+  }
+  .footerColumn ul {
+    display: inline-block; /* Center list items */
+    text-align: left; /* Keep text in lists aligned left */
+  }
+  .bottomBar {
+    flex-direction: column;
+    text-align: center;
+  }
+  .legalInfo, .paymentIcons {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 15px;
+  }
+  .paymentIcons {
+    justify-content: center;
+  }
+}
