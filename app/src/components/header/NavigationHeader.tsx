@@ -10,7 +10,6 @@ import ClientCartIcon from '../cart/ClientCartIcon';
 const NavigationHeader: React.FC = () => {
   const { profile } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [languageOpen, setLanguageOpen] = useState(false);
   
   const isAdmin = profile?.role === 'ADMIN';
 
@@ -67,33 +66,6 @@ const NavigationHeader: React.FC = () => {
           
           {/* Desktop icons */}
           <div className="hidden md:flex items-center space-x-4">
-            {/* Language Selector */}
-            <div className="relative">
-              <button 
-                onClick={() => setLanguageOpen(!languageOpen)}
-                className="flex items-center text-[#24225c] hover:text-[#76bfd4] transition-colors duration-300"
-              >
-                <span>EN</span>
-                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-              </button>
-              
-              {languageOpen && (
-                <div className="absolute right-0 mt-2 py-2 w-24 bg-white rounded-md shadow-xl z-20">
-                  <button className="block px-4 py-2 text-sm text-[#24225c] hover:bg-[#ced1ff] w-full text-left">
-                    English
-                  </button>
-                  <button className="block px-4 py-2 text-sm text-[#24225c] hover:bg-[#ced1ff] w-full text-left">
-                    Español
-                  </button>
-                  <button className="block px-4 py-2 text-sm text-[#24225c] hover:bg-[#ced1ff] w-full text-left">
-                    Français
-                  </button>
-                </div>
-              )}
-            </div>
-            
             {/* Using ClientCartIcon to prevent hydration issues */}
             <ClientCartIcon />
             
@@ -119,20 +91,6 @@ const NavigationHeader: React.FC = () => {
             >
               Delivery Information
             </Link>
-            
-            {/* Language options */}
-            <div className="py-2">
-              <p className="px-2 text-sm font-semibold text-gray-500">Language</p>
-              <button className="block w-full text-left px-2 py-2 text-base font-medium text-[#24225c] hover:bg-[#ced1ff]">
-                English
-              </button>
-              <button className="block w-full text-left px-2 py-2 text-base font-medium text-[#24225c] hover:bg-[#ced1ff]">
-                Español
-              </button>
-              <button className="block w-full text-left px-2 py-2 text-base font-medium text-[#24225c] hover:bg-[#ced1ff]">
-                Français
-              </button>
-            </div>
             
             {isAdmin && (
               <>
