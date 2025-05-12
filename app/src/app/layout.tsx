@@ -5,7 +5,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import ClientNavigation from "@/components/header/ClientNavigation"; // Import ClientNavigation
 import ClientCartSidebar from "@/components/cart/ClientCartSidebar";
-import Copyright from "@/components/ui/Copyright";
+// import Copyright from "@/components/ui/Copyright";
 import Footer from "@/components/footer/Footer"; // Add this import
 
 // Remove dynamic import and HeaderPlaceholder

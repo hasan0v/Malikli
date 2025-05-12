@@ -153,7 +153,7 @@ export default function DropsPage() {
           </p>
           <div className="mt-8 w-full max-w-md">
             <NotificationForm
-              onSubmit={(email) => {
+              onSubmit={() => {
                 // setEmailNotification(email); // Не нужно, если NotificationForm обрабатывает свой собственный ввод
                 handleNotificationSignup('all'); // 'all' может быть общим уведомлением о дропе
               }}
@@ -306,7 +306,7 @@ export default function DropsPage() {
           </p>
             <div className="max-w-md mx-auto">
             <NotificationForm
-              onSubmit={(email) => {
+              onSubmit={() => {
                 // setEmailNotification(email); // Позвольте NotificationForm управлять своим собственным состоянием
                 handleNotificationSignup('newsletter'); // 'newsletter' может быть общей подпиской
               }}
