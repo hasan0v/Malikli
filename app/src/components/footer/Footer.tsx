@@ -46,11 +46,14 @@ const Footer = () => {
           <p>Свидетельство о гос. регистрации №193863901, выдано 21.04.2025 Минским горисполкомом</p>
           <p>220005, Минск, ул. Веры Хоружей, 6А, пом. 94И</p>
           <p>Регистрация в торговом реестре</p>
-        </div>
-        <div className={styles.paymentIcons}>
-          <Image src="/images/visa-logo.png" alt="Visa" width={50} height={32} />
-          <Image src="/images/mastercard-logo.png" alt="Mastercard" width={50} height={32} />
-          <Image src="/images/belkart-logo.png" alt="Belkart" width={50} height={32} />
+        </div>        <div className={styles.paymentIcons}>
+          <Image 
+            src="/images/all-payment-logos.png" 
+            alt="Принимаемые платежные системы" 
+            width={200} 
+            height={30} 
+            style={{ width: 'auto', maxHeight: '30px' }} 
+          />
         </div>
       </div>
     </footer>

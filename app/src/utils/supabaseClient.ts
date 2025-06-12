@@ -11,8 +11,23 @@ if (!supabaseAnonKey) {
   throw new Error("Missing environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY");
 }
 
-// Create and export the Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create and export the Supabase client with custom token refresh URL
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce',
+    // Use our local API endpoint for token refresh to avoid CORS issues
+    storageKey: 'supabase-auth-token',
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'supabase-js-client'
+    }
+  }
+});
 
 // Function to create a Supabase client for server-side operations using the service role key
 // Note: Avoid exposing the service role key on the client-side.

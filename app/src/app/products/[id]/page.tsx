@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabaseClient';
@@ -93,6 +93,7 @@ interface ProductVariantDisplay {
 
 export default function ProductDetailPage() {
   const params = useParams();
+  const router = useRouter(); // Add router for navigation
   const { addToCart, openCart } = useCart();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -120,6 +121,12 @@ export default function ProductDetailPage() {
       setError(null);
 
       try {
+        // Skip fetching if we're in creation mode (no productId)
+        if (!productId) {
+          setLoading(false);
+          return;
+        }
+
         const { data: rawSupabaseProduct, error: fetchError } = await supabase
           .from('products')
           .select(`
@@ -324,7 +331,7 @@ export default function ProductDetailPage() {
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!showZoom) return;
+    if (!showZoom || !selectedImage) return; // Added check for selectedImage
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - left) / width;
     const y = (e.clientY - top) / height;
@@ -332,11 +339,13 @@ export default function ProductDetailPage() {
   };
 
   const getAvailableInventory = (): number => {
+    if (!product) return 0; // Added safety check
     if (selectedVariant) return selectedVariant.inventory_count;
     return product?.inventory_count || 0;
   };
 
   const getCurrentPrice = (): number => {
+    if (!product) return 0; // Added safety check
     if (selectedVariant) return selectedVariant.price;
     return product?.price || 0;
   };
@@ -351,6 +360,29 @@ export default function ProductDetailPage() {
     return (
       <div className="flex justify-center items-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#76bfd4]"></div>
+      </div>
+    );
+  }
+
+  // Special handling for new product creation
+  if (params.id === "new") {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h1 className="text-2xl font-bold text-[#24225c] mb-4">Создание нового товара</h1>
+          <p className="text-gray-600 mb-4">
+            Используйте форму ниже для создания нового товара
+          </p>
+          {/* Form would be placed here. For now, showing a placeholder */}
+          <div className="p-4 border border-dashed border-gray-300 rounded-lg text-center">
+            <p className="text-gray-500">Форма создания товара находится в разработке</p>
+          </div>
+          <div className="mt-4">
+            <Link href="/products" className="text-[#76bfd4] hover:underline">
+              Вернуться к каталогу товаров
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -404,7 +436,9 @@ export default function ProductDetailPage() {
                 )}
               </>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-400">Нет изображения</div>
+              <div className="flex items-center justify-center h-full text-gray-400">
+                <span>Нет изображения</span>
+              </div>
             )}
           </div>
 
