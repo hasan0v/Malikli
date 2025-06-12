@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { supabase } from '@/utils/supabaseClient';
 import { useAuth } from '@/context/AuthContext'; // Import authentication context
 
@@ -196,12 +197,12 @@ export default function CreateProductPage() {
       }
 
       const { data } = await createProductResponse.json();
-      
-      // Redirect to the product detail page
+        // Redirect to the product detail page
       router.push(`/products/${data.id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating product:', err);
-      setError(err.message || 'An error occurred while creating the product');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while creating the product';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -317,10 +318,15 @@ export default function CreateProductPage() {
             </div>
 
             {previewUrls.length > 0 && (
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {previewUrls.map((url, index) => (
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">                {previewUrls.map((url, index) => (
                   <div key={index} className="relative">
-                    <img src={url} alt={`Preview ${index}`} className="h-24 w-full object-cover rounded-md" />
+                    <Image 
+                      src={url} 
+                      alt={`Preview ${index}`} 
+                      width={96}
+                      height={96}
+                      className="h-24 w-full object-cover rounded-md" 
+                    />
                     <button
                       type="button"
                       onClick={() => removeFile(index)}

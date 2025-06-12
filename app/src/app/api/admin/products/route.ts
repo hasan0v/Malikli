@@ -71,13 +71,12 @@ export async function GET(req: NextRequest) {
   }
   const supabase = createServiceRoleClient();
   const searchParams = req.nextUrl.searchParams;
-  
-  // Parse query parameters
+    // Parse query parameters
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '50');
   const searchQuery = searchParams.get('search') || '';
-  const category = searchParams.get('category') || null;
-  const collection = searchParams.get('collection') || null;
+  // const category = searchParams.get('category') || null; // Reserved for future use
+  // const collection = searchParams.get('collection') || null; // Reserved for future use
   const sortBy = searchParams.get('sortBy') || 'created_at';
   const sortOrder = searchParams.get('sortOrder') || 'desc';
   
@@ -166,11 +165,10 @@ export async function POST(req: NextRequest) {
         { error: 'Name and price are required' },
         { status: 400 }
       );
-    }    // Create product by directly inserting into the products table
-    // Handle image URLs - they can come as either direct URLs or objects with URL property
+    }    // Create product by directly inserting into the products table    // Handle image URLs - they can come as either direct URLs or objects with URL property
     let imageUrlsArray: string[] = [];
     if (images && images.length > 0) {
-      imageUrlsArray = images.map((img: any) => {
+      imageUrlsArray = images.map((img: string | { url: string }) => {
         if (typeof img === 'string') {
           return img;
         }
@@ -178,7 +176,7 @@ export async function POST(req: NextRequest) {
       });
     } else if (body.image_urls && Array.isArray(body.image_urls)) {
       // Handle direct image_urls array from client
-      imageUrlsArray = body.image_urls.filter((url: any) => typeof url === 'string');
+      imageUrlsArray = body.image_urls.filter((url: unknown) => typeof url === 'string');
     }
 
     const { data, error: productError } = await supabase
@@ -247,10 +245,9 @@ export async function POST(req: NextRequest) {
         console.error('Error adding collections:', collectionError);
       }
     }
-    
-    // Add images if provided
+      // Add images if provided
     if (images.length > 0) {
-      const imageRecords = images.map((image: any, index: number) => ({
+      const imageRecords = images.map((image: { url: string; is_primary?: boolean; sort_order?: number }, index: number) => ({
         product_id: productId,
         url: image.url,
         is_primary: image.is_primary || index === 0,
@@ -297,10 +294,14 @@ export async function POST(req: NextRequest) {
         console.error('Error adding colors:', colorError);
       }
     }
-    
-    // Add variants if provided
+      // Add variants if provided
     if (variants.length > 0) {
-      const variantRecords = variants.map((variant: any) => ({
+      const variantRecords = variants.map((variant: { 
+        size_id: number; 
+        color_id: number; 
+        inventory_count?: number; 
+        price_adjustment?: number 
+      }) => ({
         product_id: productId,
         size_id: variant.size_id,
         color_id: variant.color_id,
@@ -329,11 +330,10 @@ export async function POST(req: NextRequest) {
       },
       message: 'Product created successfully'
     });
-    
-  } catch (error: any) {
+      } catch (error: unknown) {
     console.error('Server error creating product:', error);
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }

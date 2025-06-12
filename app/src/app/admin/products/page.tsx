@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/utils/supabaseClient';
 import { useRouter } from 'next/navigation';
@@ -43,10 +42,9 @@ export default function AdminProductsPage() {
     const checkAdminStatus = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
+          if (session?.user) {
           // Check if user is in admin table or has admin role
-          const { data, error } = await supabase
+          const { data } = await supabase
             .from('admins')
             .select('id')
             .eq('user_id', session.user.id)
@@ -68,11 +66,10 @@ export default function AdminProductsPage() {
       }
     };
     
-    checkAdminStatus();
-  }, [router]);
+    checkAdminStatus();  }, [router]);
 
   // Fetch products
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -92,25 +89,23 @@ export default function AdminProductsPage() {
       
       if (!response.ok) {
         throw new Error('Failed to fetch products');
-      }
-
-      const data = await response.json();
+      }      const data = await response.json();
       setProducts(data.data || []);
       setTotalPages(data.pagination?.totalPages || 1);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching products:', err);
-      setError(err.message || 'An error occurred while fetching products');
-    } finally {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching products';
+      setError(errorMessage);    } finally {
       setLoading(false);
     }
-  };
-
+  }, [currentPage, sortBy, sortOrder, searchQuery]);
+  
   // Initial fetch
   useEffect(() => {
     if (isAdmin) {
       fetchProducts();
     }
-  }, [currentPage, sortBy, sortOrder, isAdmin]);
+  }, [currentPage, sortBy, sortOrder, isAdmin, fetchProducts]);
 
   // Handle search
   const handleSearch = (e: React.FormEvent) => {
@@ -167,13 +162,13 @@ export default function AdminProductsPage() {
       
       // Refetch products
       fetchProducts();
-      
-      // Close modal
+        // Close modal
       setIsDeleteModalOpen(false);
       setProductToDelete(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error deleting product:', err);
-      setError(err.message || 'An error occurred while deleting the product');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while deleting the product';
+      setError(errorMessage);
     }
   };
 
@@ -193,12 +188,12 @@ export default function AdminProductsPage() {
 
       // Clear selected products
       setSelectedProducts([]);
-      
-      // Refetch products
+        // Refetch products
       fetchProducts();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error bulk deleting products:', err);
-      setError(err.message || 'An error occurred while deleting products');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while deleting products';
+      setError(errorMessage);
     }
   };
 

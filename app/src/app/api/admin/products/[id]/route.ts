@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient, createServerClientWithToken } from '@/utils/supabaseServer';
 
-// Define product interface
-interface Product {
-  id: string;
-  name: string;
-  description?: string;
-  price: number;
+// Define interfaces for the request body
+interface ProductImage {
+  url: string;
+  is_primary?: boolean;
+  sort_order?: number;
+}
+
+interface ProductVariant {
+  size_id?: string;
+  color_id?: string;
   inventory_count?: number;
-  is_active: boolean;
-  drop_scheduled_time?: string | null;
-  created_at?: string;
+  price_adjustment?: number;
 }
 
 // Helper to check if user is admin
@@ -63,7 +65,7 @@ const isAdmin = async (req: NextRequest) => {
 // GET handler - Get a single product by ID
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // Check admin access
   if (!await isAdmin(req)) {
@@ -74,7 +76,7 @@ export async function GET(
   }
 
   const supabase = createServiceRoleClient();
-  const productId = params.id;
+  const { id: productId } = await params;
   
   // Query product with all related data
   const { data, error } = await supabase
@@ -123,7 +125,7 @@ export async function GET(
 // PATCH handler - Update a product
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // Check admin access
   if (!await isAdmin(req)) {
@@ -134,7 +136,7 @@ export async function PATCH(
   }
 
   const supabase = createServiceRoleClient();
-  const productId = params.id;
+  const { id: productId } = await params;
   
   try {
     // Check if product exists
@@ -164,11 +166,10 @@ export async function PATCH(
       collections,
       images,
       sizes,
-      colors,
-      variants
+      colors,      variants
     } = body;
       // Update basic product information
-    const productUpdateData: any = {};
+    const productUpdateData: Record<string, unknown> = {};
     
     if (name !== undefined) productUpdateData.name = name;
     if (description !== undefined) productUpdateData.description = description;
@@ -245,10 +246,9 @@ export async function PATCH(
         .from('product_images')
         .delete()
         .eq('product_id', productId);
-        
-      // Then insert new ones
+          // Then insert new ones
       if (images.length > 0) {
-        const imageRecords = images.map((image: any, index: number) => ({
+        const imageRecords = images.map((image: ProductImage, index: number) => ({
           product_id: productId,
           url: image.url,
           is_primary: image.is_primary || index === 0,
@@ -310,10 +310,9 @@ export async function PATCH(
         .from('product_variants')
         .delete()
         .eq('product_id', productId);
-        
-      // Then insert new ones
+          // Then insert new ones
       if (variants.length > 0) {
-        const variantRecords = variants.map((variant: any) => ({
+        const variantRecords = variants.map((variant: ProductVariant) => ({
           product_id: productId,
           size_id: variant.size_id,
           color_id: variant.color_id,
@@ -326,15 +325,15 @@ export async function PATCH(
           .insert(variantRecords);
       }
     }
-    
-    return NextResponse.json({
+      return NextResponse.json({
       data: { id: productId },
       message: 'Product updated successfully'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Server error updating product:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
@@ -343,7 +342,7 @@ export async function PATCH(
 // DELETE handler - Delete a product
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // Check admin access
   if (!await isAdmin(req)) {
@@ -354,7 +353,7 @@ export async function DELETE(
   }
 
   const supabase = createServiceRoleClient();
-  const productId = params.id;
+  const { id: productId } = await params;
   
   try {
     // Check if product exists
@@ -383,14 +382,14 @@ export async function DELETE(
         { status: 500 }
       );
     }
-    
-    return NextResponse.json({
+      return NextResponse.json({
       message: 'Product deleted successfully'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Server error deleting product:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: errorMessage },
       { status: 500 }
     );
   }

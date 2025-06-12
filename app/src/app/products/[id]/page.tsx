@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabaseClient';
@@ -93,7 +93,6 @@ interface ProductVariantDisplay {
 
 export default function ProductDetailPage() {
   const params = useParams();
-  const router = useRouter(); // Add router for navigation
   const { addToCart, openCart } = useCart();
 
   const [product, setProduct] = useState<Product | null>(null);
